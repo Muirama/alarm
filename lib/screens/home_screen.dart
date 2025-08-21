@@ -65,33 +65,43 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           children: [
             // === Choix son + test ===
-            DropdownButton<String>(
-              hint: const Text("Choisir un son 🔔"),
-              value: selectedSound,
-              items:
-                  sounds.map((s) {
-                    return DropdownMenuItem(
-                      value: s,
-                      child: Text(s.split("/").last),
-                    );
-                  }).toList(),
-              onChanged: (val) => setState(() => selectedSound = val),
+            SizedBox(
+              width: double.infinity, // prend toute la largeur disponible
+              child: DropdownButton<String>(
+                isExpanded: true, // très important !
+                hint: const Text("Choisir un son 🔔"),
+                value: selectedSound,
+                items:
+                    sounds.map((s) {
+                      return DropdownMenuItem(
+                        value: s,
+                        child: Text(s.split("/").last),
+                      );
+                    }).toList(),
+                onChanged: (val) => setState(() => selectedSound = val),
+              ),
             ),
+
             const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            Column(
               children: [
                 ElevatedButton.icon(
                   onPressed: selectedSound == null ? null : playSound,
                   icon: const Icon(Icons.play_arrow),
                   label: const Text("Jouer"),
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 50),
+                  ),
                 ),
-                const SizedBox(width: 20),
+                const SizedBox(height: 10),
                 ElevatedButton.icon(
                   onPressed: stopSound,
                   icon: const Icon(Icons.stop),
                   label: const Text("Stop"),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 50),
+                    backgroundColor: Colors.red,
+                  ),
                 ),
               ],
             ),
