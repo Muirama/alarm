@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:hive_ce/hive.dart';
 import '../models/alarm_model.dart';
 
 class AlarmEditScreen extends StatefulWidget {
@@ -67,13 +68,24 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
   void saveAlarm() {
     if (selectedDateTime == null || selectedSound == null) return;
 
-    final alarm = AlarmModel(
-      id: DateTime.now().millisecondsSinceEpoch,
-      dateTime: selectedDateTime!,
-      sound: selectedSound!,
-    );
+    final box = Hive.box<AlarmModel>('alarms');
 
-    Navigator.pop(context, alarm);
+    if (widget.initial == null) {
+      // === Ajout ===
+      final alarm = AlarmModel(
+        id: DateTime.now().millisecondsSinceEpoch,
+        dateTime: selectedDateTime!,
+        sound: selectedSound!,
+      );
+      box.add(alarm);
+    } else {
+      // === Modification ===
+      widget.initial!.dateTime = selectedDateTime!;
+      widget.initial!.sound = selectedSound!;
+      widget.initial!.save();
+    }
+
+    Navigator.pop(context);
   }
 
   @override
@@ -102,6 +114,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
 
             // Choix du son
             DropdownButton<String>(
+              isExpanded: true,
               hint: const Text("Choisir un son 🔔"),
               value: selectedSound,
               items:

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:hive_ce_flutter/hive_flutter.dart';
 import '../models/alarm_model.dart';
 import 'alarm_edit_screen.dart';
 import 'dart:async';
@@ -27,11 +28,8 @@ class _HomeScreenState extends State<HomeScreen> {
     "assets/sounds/lakolosy_jozefa_mpitaiza_07h.mp3",
   ];
 
-  List<AlarmModel> alarms = []; // liste des alarmes créées
-
   Future<void> playSound() async {
     if (selectedSound == null) return;
-
     try {
       await _player.setAsset(selectedSound!);
       await _player.play();
@@ -58,17 +56,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final box = Hive.box<AlarmModel>('alarms');
+
     return Scaffold(
       appBar: AppBar(title: const Text("Mes réveils")),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // === Choix son + test ===
+            // === Choix son ===
             SizedBox(
-              width: double.infinity, // prend toute la largeur disponible
+              width: double.infinity,
               child: DropdownButton<String>(
-                isExpanded: true, // très important !
+                isExpanded: true,
                 hint: const Text("Choisir un son 🔔"),
                 value: selectedSound,
                 items:
@@ -110,69 +110,60 @@ class _HomeScreenState extends State<HomeScreen> {
 
             // === Liste des alarmes créées ===
             Expanded(
-              child:
-                  alarms.isEmpty
-                      ? const Center(child: Text("Aucune alarme créée"))
-                      : ListView.builder(
-                        itemCount: alarms.length,
-                        itemBuilder: (context, i) {
-                          final alarm = alarms[i];
-                          return Card(
-                            child: ListTile(
-                              leading: const Icon(Icons.alarm),
-                              title: Text(
-                                "⏰ ${alarm.dateTime.hour.toString().padLeft(2, '0')}:${alarm.dateTime.minute.toString().padLeft(2, '0')} "
-                                "- ${alarm.dateTime.day}/${alarm.dateTime.month}",
-                              ),
-                              subtitle: Text(
-                                "Son: ${alarm.sound.split('/').last}",
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  // bouton modifier
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.edit,
-                                      color: Colors.blue,
+              child: ValueListenableBuilder(
+                valueListenable: box.listenable(),
+                builder: (context, Box<AlarmModel> box, _) {
+                  if (box.values.isEmpty) {
+                    return const Center(child: Text("Aucune alarme créée"));
+                  }
+                  return ListView.builder(
+                    itemCount: box.values.length,
+                    itemBuilder: (context, i) {
+                      final alarm = box.getAt(i)!;
+                      return Card(
+                        child: ListTile(
+                          leading: const Icon(Icons.alarm),
+                          title: Text(
+                            "⏰ ${alarm.dateTime.hour.toString().padLeft(2, '0')}:${alarm.dateTime.minute.toString().padLeft(2, '0')} "
+                            "- ${alarm.dateTime.day}/${alarm.dateTime.month}",
+                          ),
+                          subtitle: Text("Son: ${alarm.sound.split('/').last}"),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // bouton modifier
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.edit,
+                                  color: Colors.blue,
+                                ),
+                                onPressed: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder:
+                                          (_) =>
+                                              AlarmEditScreen(initial: alarm),
                                     ),
-                                    onPressed: () async {
-                                      final updatedAlarm = await Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder:
-                                              (_) => AlarmEditScreen(
-                                                initial: alarm,
-                                              ),
-                                        ),
-                                      );
-
-                                      if (updatedAlarm != null &&
-                                          updatedAlarm is AlarmModel) {
-                                        setState(() {
-                                          alarms[i] = updatedAlarm;
-                                        });
-                                      }
-                                    },
-                                  ),
-                                  // bouton supprimer
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.delete,
-                                      color: Colors.red,
-                                    ),
-                                    onPressed: () {
-                                      setState(() {
-                                        alarms.removeAt(i);
-                                      });
-                                    },
-                                  ),
-                                ],
+                                  );
+                                },
                               ),
-                            ),
-                          );
-                        },
-                      ),
+                              // bouton supprimer
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.delete,
+                                  color: Colors.red,
+                                ),
+                                onPressed: () => box.deleteAt(i),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ],
         ),
@@ -182,16 +173,10 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButton: FloatingActionButton(
         child: const Icon(Icons.add),
         onPressed: () async {
-          final newAlarm = await Navigator.push(
+          await Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const AlarmEditScreen()),
           );
-
-          if (newAlarm != null && newAlarm is AlarmModel) {
-            setState(() {
-              alarms.add(newAlarm);
-            });
-          }
         },
       ),
     );
