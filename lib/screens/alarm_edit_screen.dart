@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:hive_ce/hive.dart';
+import 'package:just_audio/just_audio.dart';
 import '../models/alarm_model.dart';
 
 class AlarmEditScreen extends StatefulWidget {
@@ -16,6 +17,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
   DateTime? selectedDateTime;
   String? selectedSound;
   bool _isActive = true;
+  final AudioPlayer _player = AudioPlayer();
 
   final List<String> sounds = [
     "assets/sounds/lakolosy_6h00.mp3",
@@ -36,6 +38,12 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
       selectedSound = widget.initial!.sound;
       _isActive = widget.initial!.isActive;
     }
+  }
+
+  @override
+  void dispose() {
+    _player.dispose();
+    super.dispose();
   }
 
   Future<void> pickDateTime() async {
@@ -65,6 +73,20 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
         time.minute,
       );
     });
+  }
+
+  Future<void> playSound() async {
+    if (selectedSound == null) return;
+    try {
+      await _player.setAsset(selectedSound!);
+      await _player.play();
+    } catch (e) {
+      print("Erreur lecture: $e");
+    }
+  }
+
+  Future<void> stopSound() async {
+    await _player.stop();
   }
 
   void saveAlarm() {
@@ -110,7 +132,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Carte pour date & heure
+            // Carte date & heure
             Card(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -131,35 +153,63 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 16),
 
-            const SizedBox(height: 20),
-
-            // Carte pour choix du son
+            // Carte choix du son + pré-écoute
             Card(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
               elevation: 3,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: DropdownButton<String>(
-                  isExpanded: true,
-                  underline: const SizedBox(),
-                  hint: const Text("Choisir un son 🔔"),
-                  value: selectedSound,
-                  items:
-                      sounds.map((s) {
-                        return DropdownMenuItem(
-                          value: s,
-                          child: Text(s.split("/").last),
-                        );
-                      }).toList(),
-                  onChanged: (val) => setState(() => selectedSound = val),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Choisir un son 🔔",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButton<String>(
+                      isExpanded: true,
+                      underline: const SizedBox(),
+                      value: selectedSound,
+                      items:
+                          sounds.map((s) {
+                            return DropdownMenuItem(
+                              value: s,
+                              child: Text(s.split("/").last),
+                            );
+                          }).toList(),
+                      onChanged: (val) => setState(() => selectedSound = val),
+                    ),
+                    if (selectedSound != null)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          IconButton(
+                            icon: const Icon(
+                              Icons.play_arrow,
+                              color: Colors.green,
+                            ),
+                            onPressed: playSound,
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.stop, color: Colors.red),
+                            onPressed: stopSound,
+                          ),
+                        ],
+                      ),
+                  ],
                 ),
               ),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
             // Switch activer / désactiver
             Card(
