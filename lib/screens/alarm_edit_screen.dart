@@ -80,7 +80,6 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
     final box = Hive.box<AlarmModel>('alarms');
 
     if (widget.initial == null) {
-      // === Ajout ===
       final alarm = AlarmModel(
         id: DateTime.now().millisecondsSinceEpoch,
         dateTime: selectedDateTime!,
@@ -89,7 +88,6 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
       );
       box.add(alarm);
     } else {
-      // === Modification ===
       widget.initial!.dateTime = selectedDateTime!;
       widget.initial!.sound = selectedSound!;
       widget.initial!.isActive = _isActive;
@@ -106,45 +104,75 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
         title: Text(
           widget.initial == null ? "Nouvelle alarme" : "Modifier alarme",
         ),
+        centerTitle: true,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Date & heure
-            ElevatedButton.icon(
-              onPressed: pickDateTime,
-              icon: const Icon(Icons.access_time),
-              label: Text(
-                selectedDateTime == null
-                    ? "Choisir date & heure"
-                    : DateFormat("dd/MM/yyyy HH:mm").format(selectedDateTime!),
+            // Carte pour date & heure
+            Card(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 3,
+              child: ListTile(
+                leading: const Icon(Icons.access_time, color: Colors.blue),
+                title: Text(
+                  selectedDateTime == null
+                      ? "Choisir date & heure"
+                      : DateFormat(
+                        "dd/MM/yyyy HH:mm",
+                      ).format(selectedDateTime!),
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.edit_calendar, color: Colors.blue),
+                  onPressed: pickDateTime,
+                ),
               ),
             ),
+
             const SizedBox(height: 20),
 
-            // Choix du son
-            DropdownButton<String>(
-              isExpanded: true,
-              hint: const Text("Choisir un son 🔔"),
-              value: selectedSound,
-              items:
-                  sounds.map((s) {
-                    return DropdownMenuItem(
-                      value: s,
-                      child: Text(s.split("/").last),
-                    );
-                  }).toList(),
-              onChanged: (val) => setState(() => selectedSound = val),
+            // Carte pour choix du son
+            Card(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 3,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: DropdownButton<String>(
+                  isExpanded: true,
+                  underline: const SizedBox(),
+                  hint: const Text("Choisir un son 🔔"),
+                  value: selectedSound,
+                  items:
+                      sounds.map((s) {
+                        return DropdownMenuItem(
+                          value: s,
+                          child: Text(s.split("/").last),
+                        );
+                      }).toList(),
+                  onChanged: (val) => setState(() => selectedSound = val),
+                ),
+              ),
             ),
 
             const SizedBox(height: 20),
 
-            // Switch activer/désactiver
-            SwitchListTile(
-              title: const Text("Activer l'alarme"),
-              value: _isActive,
-              onChanged: (val) => setState(() => _isActive = val),
+            // Switch activer / désactiver
+            Card(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 3,
+              child: SwitchListTile(
+                title: const Text("Activer l'alarme"),
+                secondary: const Icon(Icons.alarm, color: Colors.green),
+                value: _isActive,
+                onChanged: (val) => setState(() => _isActive = val),
+              ),
             ),
 
             const Spacer(),
@@ -158,7 +186,10 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
               icon: const Icon(Icons.save),
               label: const Text("Enregistrer"),
               style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 50),
+                minimumSize: const Size(double.infinity, 55),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ],
