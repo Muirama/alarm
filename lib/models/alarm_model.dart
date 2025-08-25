@@ -13,9 +13,13 @@ class AlarmModel extends HiveObject {
   @HiveField(2)
   String sound;
 
+  @HiveField(3)
+  bool isActive;
+
   AlarmModel({
     required this.id,
     required this.dateTime,
     required this.sound,
+    this.isActive = true,
   });
 }

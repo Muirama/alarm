@@ -15,6 +15,7 @@ class AlarmEditScreen extends StatefulWidget {
 class _AlarmEditScreenState extends State<AlarmEditScreen> {
   DateTime? selectedDateTime;
   String? selectedSound;
+  bool _isActive = true;
 
   final List<String> sounds = [
     "assets/sounds/lakolosy_6h00.mp3",
@@ -33,6 +34,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
     if (widget.initial != null) {
       selectedDateTime = widget.initial!.dateTime;
       selectedSound = widget.initial!.sound;
+      _isActive = widget.initial!.isActive;
     }
   }
 
@@ -68,6 +70,13 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
   void saveAlarm() {
     if (selectedDateTime == null || selectedSound == null) return;
 
+    if (selectedDateTime!.isBefore(DateTime.now())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("La date doit être dans le futur ⏳")),
+      );
+      return;
+    }
+
     final box = Hive.box<AlarmModel>('alarms');
 
     if (widget.initial == null) {
@@ -76,12 +85,14 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
         id: DateTime.now().millisecondsSinceEpoch,
         dateTime: selectedDateTime!,
         sound: selectedSound!,
+        isActive: _isActive,
       );
       box.add(alarm);
     } else {
       // === Modification ===
       widget.initial!.dateTime = selectedDateTime!;
       widget.initial!.sound = selectedSound!;
+      widget.initial!.isActive = _isActive;
       widget.initial!.save();
     }
 
@@ -126,6 +137,16 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
                   }).toList(),
               onChanged: (val) => setState(() => selectedSound = val),
             ),
+
+            const SizedBox(height: 20),
+
+            // Switch activer/désactiver
+            SwitchListTile(
+              title: const Text("Activer l'alarme"),
+              value: _isActive,
+              onChanged: (val) => setState(() => _isActive = val),
+            ),
+
             const Spacer(),
 
             // Bouton enregistrer
