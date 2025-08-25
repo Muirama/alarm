@@ -35,11 +35,10 @@ class _HomeScreenState extends State<HomeScreen> {
       await _player.setAsset(selectedSound!);
       await _player.play();
 
-      // auto-stop après 1 minute max
       _timer?.cancel();
       _timer = Timer(const Duration(minutes: 1), stopSound);
     } catch (e) {
-      print("Erreur lecture: $e");
+      debugPrint("Erreur lecture: $e");
     }
   }
 
@@ -58,64 +57,68 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final box = Hive.box<AlarmModel>('alarms');
-    final timeFormat = DateFormat('HH:mm'); // seulement l'heure
-    final dateFormat = DateFormat('dd/MM/yyyy'); // seulement la date
+    final dateFormat = DateFormat('dd/MM/yyyy – HH:mm');
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("⏰ Mes Réveils"),
-        centerTitle: true,
-        elevation: 2,
-      ),
+      appBar: AppBar(title: const Text("Mes réveils"), centerTitle: true),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // === Choix son ===
+            // Dropdown pour le choix du son
             DropdownButtonFormField<String>(
+              value: selectedSound,
+              isExpanded: true,
               decoration: InputDecoration(
                 labelText: "Choisir un son 🔔",
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
               ),
-              isExpanded: true,
-              value: selectedSound,
               items:
                   sounds.map((s) {
                     return DropdownMenuItem(
                       value: s,
-                      child: Text(s.split("/").last),
+                      child: Text(
+                        s.split("/").last,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     );
                   }).toList(),
               onChanged: (val) => setState(() => selectedSound = val),
             ),
 
             const SizedBox(height: 16),
+
+            // Boutons play/stop
             Row(
               children: [
-                Expanded(
+                Flexible(
                   child: ElevatedButton.icon(
                     onPressed: selectedSound == null ? null : playSound,
                     icon: const Icon(Icons.play_arrow),
-                    label: const Text("Jouer"),
+                    label: const FittedBox(child: Text("Jouer")),
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      minimumSize: const Size(double.infinity, 50),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
+                const SizedBox(width: 12),
+                Flexible(
                   child: ElevatedButton.icon(
                     onPressed: stopSound,
                     icon: const Icon(Icons.stop),
-                    label: const Text("Stop"),
+                    label: const FittedBox(child: Text("Stop")),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      backgroundColor: Colors.redAccent,
+                      minimumSize: const Size(double.infinity, 50),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -125,10 +128,10 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
 
-            const SizedBox(height: 20),
-            const Divider(thickness: 1.2),
+            const SizedBox(height: 24),
+            const Divider(height: 1, thickness: 1),
 
-            // === Liste des alarmes créées ===
+            // Liste des alarmes améliorée
             Expanded(
               child: ValueListenableBuilder(
                 valueListenable: box.listenable(),
@@ -136,7 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   if (box.values.isEmpty) {
                     return const Center(
                       child: Text(
-                        "Aucune alarme créée 😴",
+                        "Aucune alarme créée",
                         style: TextStyle(fontSize: 16, color: Colors.grey),
                       ),
                     );
@@ -146,53 +149,77 @@ class _HomeScreenState extends State<HomeScreen> {
                     itemBuilder: (context, i) {
                       final alarm = box.getAt(i)!;
                       return Card(
-                        margin: const EdgeInsets.symmetric(vertical: 8),
+                        elevation: 3,
+                        margin: const EdgeInsets.symmetric(
+                          vertical: 8,
+                          horizontal: 4,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        elevation: 3,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
-                            vertical: 12,
-                            horizontal: 16,
+                            vertical: 8,
+                            horizontal: 12,
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.alarm, size: 36),
-                              const SizedBox(width: 12),
+                              // Icône alarme stylisée
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color:
+                                      alarm.isActive
+                                          ? Colors.blueAccent.withValues(alpha : 0.2)
+                                          : Colors.grey.withValues(alpha : 0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  Icons.alarm,
+                                  color:
+                                      alarm.isActive
+                                          ? Colors.blueAccent
+                                          : Colors.grey,
+                                  size: 28,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+
+                              // Infos alarme
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      timeFormat.format(alarm.dateTime),
-                                      style: const TextStyle(
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    Text(
                                       dateFormat.format(alarm.dateTime),
                                       style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.grey[600],
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                        color:
+                                            alarm.isActive
+                                                ? Colors.black
+                                                : Colors.grey[600],
                                       ),
                                     ),
+                                    const SizedBox(height: 4),
                                     Text(
-                                      "Son : ${alarm.sound.split('/').last}",
+                                      "🔔 ${alarm.sound.split('/').last}",
                                       style: TextStyle(
-                                        fontSize: 13,
+                                        fontSize: 14,
                                         color: Colors.grey[700],
                                       ),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ],
                                 ),
                               ),
+
+                              // Switch + actions
                               Column(
                                 children: [
                                   Switch(
                                     value: alarm.isActive,
-                                    onChanged: (val) {
+                                    onChanged: (val) async {
                                       setState(() {
                                         alarm.isActive = val;
                                         alarm.save();
@@ -205,7 +232,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       IconButton(
                                         icon: const Icon(
                                           Icons.edit,
-                                          color: Colors.blue,
+                                          color: Colors.blueAccent,
                                         ),
                                         onPressed: () async {
                                           await Navigator.push(
@@ -222,7 +249,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       IconButton(
                                         icon: const Icon(
                                           Icons.delete,
-                                          color: Colors.red,
+                                          color: Colors.redAccent,
                                         ),
                                         onPressed: () => box.deleteAt(i),
                                       ),
@@ -242,11 +269,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-
-      // === Bouton pour ajouter une alarme ===
-      floatingActionButton: FloatingActionButton.extended(
-        icon: const Icon(Icons.add),
-        label: const Text("Nouvelle alarme"),
+      floatingActionButton: FloatingActionButton(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: const Icon(Icons.add),
         onPressed: () async {
           await Navigator.push(
             context,

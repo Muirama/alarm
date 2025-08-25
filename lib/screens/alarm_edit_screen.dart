@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:hive_ce/hive.dart';
-import 'package:just_audio/just_audio.dart';
 import '../models/alarm_model.dart';
+import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
+import '../services/alarm_service.dart';
+import 'home_screen.dart';
 
 class AlarmEditScreen extends StatefulWidget {
   final AlarmModel? initial;
@@ -17,7 +19,6 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
   DateTime? selectedDateTime;
   String? selectedSound;
   bool _isActive = true;
-  final AudioPlayer _player = AudioPlayer();
 
   final List<String> sounds = [
     "assets/sounds/lakolosy_6h00.mp3",
@@ -38,12 +39,6 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
       selectedSound = widget.initial!.sound;
       _isActive = widget.initial!.isActive;
     }
-  }
-
-  @override
-  void dispose() {
-    _player.dispose();
-    super.dispose();
   }
 
   Future<void> pickDateTime() async {
@@ -75,24 +70,11 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
     });
   }
 
-  Future<void> playSound() async {
-    if (selectedSound == null) return;
-    try {
-      await _player.setAsset(selectedSound!);
-      await _player.play();
-    } catch (e) {
-      print("Erreur lecture: $e");
-    }
-  }
-
-  Future<void> stopSound() async {
-    await _player.stop();
-  }
-
-  void saveAlarm() {
+  Future<void> saveAlarm() async {
     if (selectedDateTime == null || selectedSound == null) return;
 
     if (selectedDateTime!.isBefore(DateTime.now())) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("La date doit être dans le futur ⏳")),
       );
@@ -101,22 +83,62 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
 
     final box = Hive.box<AlarmModel>('alarms');
 
+    AlarmModel alarm;
     if (widget.initial == null) {
-      final alarm = AlarmModel(
+      alarm = AlarmModel(
         id: DateTime.now().millisecondsSinceEpoch,
         dateTime: selectedDateTime!,
         sound: selectedSound!,
         isActive: _isActive,
       );
-      box.add(alarm);
+      await box.add(alarm);
     } else {
-      widget.initial!.dateTime = selectedDateTime!;
-      widget.initial!.sound = selectedSound!;
-      widget.initial!.isActive = _isActive;
-      widget.initial!.save();
+      alarm = widget.initial!;
+      alarm.dateTime = selectedDateTime!;
+      alarm.sound = selectedSound!;
+      alarm.isActive = _isActive;
+      await alarm.save();
     }
 
-    Navigator.pop(context);
+    // Afficher SnackBar immédiatement selon le statut
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _isActive
+              ? "Alarme activée et sauvegardée 🎉"
+              : "Alarme sauvegardée mais désactivée ⚠️",
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+
+    // Planifier l’alarme en arrière-plan sans bloquer l’UI
+    if (_isActive) {
+      final now = DateTime.now();
+      final alarmTime = selectedDateTime!;
+      final duration = alarmTime.difference(now);
+      if (!duration.isNegative) {
+        // Ne pas await ici pour ne pas bloquer l'affichage du SnackBar
+        AndroidAlarmManager.oneShot(
+          duration,
+          alarm.id,
+          alarmCallback,
+          exact: true,
+          wakeup: true,
+        );
+      }
+    }
+
+    // Attendre la durée du SnackBar avant navigation
+    await Future.delayed(const Duration(seconds: 2));
+
+    // Retour à HomeScreen
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const HomeScreen()),
+      (route) => false,
+    );
   }
 
   @override
@@ -132,102 +154,55 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Carte date & heure
-            Card(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+            ElevatedButton.icon(
+              onPressed: pickDateTime,
+              icon: const Icon(Icons.access_time),
+              label: Text(
+                selectedDateTime == null
+                    ? "Choisir date & heure"
+                    : DateFormat("dd/MM/yyyy HH:mm").format(selectedDateTime!),
               ),
-              elevation: 3,
-              child: ListTile(
-                leading: const Icon(Icons.access_time, color: Colors.blue),
-                title: Text(
-                  selectedDateTime == null
-                      ? "Choisir date & heure"
-                      : DateFormat(
-                        "dd/MM/yyyy HH:mm",
-                      ).format(selectedDateTime!),
-                ),
-                trailing: IconButton(
-                  icon: const Icon(Icons.edit_calendar, color: Colors.blue),
-                  onPressed: pickDateTime,
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 50),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
             ),
-            const SizedBox(height: 16),
-
-            // Carte choix du son + pré-écoute
-            Card(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              elevation: 3,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
+            const SizedBox(height: 20),
+            DropdownButtonFormField<String>(
+              value: selectedSound,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: "Choisir un son 🔔",
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
                   horizontal: 16,
-                  vertical: 8,
+                  vertical: 12,
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Choisir un son 🔔",
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    DropdownButton<String>(
-                      isExpanded: true,
-                      underline: const SizedBox(),
-                      value: selectedSound,
-                      items:
-                          sounds.map((s) {
-                            return DropdownMenuItem(
-                              value: s,
-                              child: Text(s.split("/").last),
-                            );
-                          }).toList(),
-                      onChanged: (val) => setState(() => selectedSound = val),
-                    ),
-                    if (selectedSound != null)
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          IconButton(
-                            icon: const Icon(
-                              Icons.play_arrow,
-                              color: Colors.green,
-                            ),
-                            onPressed: playSound,
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.stop, color: Colors.red),
-                            onPressed: stopSound,
-                          ),
-                        ],
+              ),
+              items:
+                  sounds.map((s) {
+                    return DropdownMenuItem(
+                      value: s,
+                      child: Text(
+                        s.split("/").last,
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
                       ),
-                  ],
-                ),
-              ),
+                    );
+                  }).toList(),
+              onChanged: (val) => setState(() => selectedSound = val),
             ),
-
-            const SizedBox(height: 16),
-
-            // Switch activer / désactiver
-            Card(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              elevation: 3,
-              child: SwitchListTile(
-                title: const Text("Activer l'alarme"),
-                secondary: const Icon(Icons.alarm, color: Colors.green),
-                value: _isActive,
-                onChanged: (val) => setState(() => _isActive = val),
-              ),
+            const SizedBox(height: 20),
+            SwitchListTile(
+              title: const Text("Activer l'alarme"),
+              value: _isActive,
+              onChanged: (val) => setState(() => _isActive = val),
             ),
-
             const Spacer(),
-
-            // Bouton enregistrer
             ElevatedButton.icon(
               onPressed:
                   (selectedDateTime != null && selectedSound != null)
@@ -236,7 +211,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
               icon: const Icon(Icons.save),
               label: const Text("Enregistrer"),
               style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 55),
+                minimumSize: const Size(double.infinity, 50),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
