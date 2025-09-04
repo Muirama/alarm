@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import '../models/alarm_model.dart';
+import 'alarm_storage.dart';
 
 class AlarmService {
   static final AlarmService _instance = AlarmService._internal();
@@ -35,18 +36,23 @@ class AlarmService {
     await _player.stop();
   }
 
-  void addAlarm(AlarmModel alarm) {
+  Future<void> addAlarm(AlarmModel alarm) async {
     alarms.add(alarm);
+    await AlarmStorage.saveAlarms(alarms);
     _scheduleCheck();
   }
 
-  void removeAlarm(String id) {
+  Future<void> removeAlarm(String id) async {
     alarms.removeWhere((a) => a.id == id);
+    await AlarmStorage.saveAlarms(alarms);
   }
 
-  void updateAlarm(AlarmModel updated) {
+  Future<void> updateAlarm(AlarmModel updated) async {
     final index = alarms.indexWhere((a) => a.id == updated.id);
-    if (index != -1) alarms[index] = updated;
+    if (index != -1) {
+      alarms[index] = updated;
+      await AlarmStorage.saveAlarms(alarms);
+    }
   }
 
   void _scheduleCheck() {
@@ -78,6 +84,16 @@ class AlarmService {
       case 6: return "Samedi";
       case 7: return "Dimanche";
       default: return "";
+    }
+  }
+
+  /// Charger les alarmes sauvegardées au démarrage
+  Future<void> loadAlarms() async {
+    final loaded = await AlarmStorage.loadAlarms();
+    alarms.clear();
+    alarms.addAll(loaded);
+    if (alarms.isNotEmpty) {
+      _scheduleCheck();
     }
   }
 }
