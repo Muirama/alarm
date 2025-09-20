@@ -1,26 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:hive_ce_flutter/hive_flutter.dart';
-import 'models/alarm_model.dart';
 import 'screens/home_screen.dart';
+import 'services/alarm_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialiser Hive
-  await Hive.initFlutter();
-  Hive.registerAdapter(AlarmModelAdapter());
-  await Hive.openBox<AlarmModel>('alarms');
+  final alarmService = AlarmService();
+  await alarmService.loadAlarms();
 
-  runApp(const MyAlarmApp());
+  runApp(const AlarmApp());
 }
 
-class MyAlarmApp extends StatelessWidget {
-  const MyAlarmApp({super.key});
+class AlarmApp extends StatelessWidget {
+  const AlarmApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Mon Réveil',
+      title: "Alarm App",
       theme: ThemeData(primarySwatch: Colors.blue),
       home: const HomeScreen(),
     );
