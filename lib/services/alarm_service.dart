@@ -7,9 +7,7 @@ class AlarmService {
   static final AlarmService _instance = AlarmService._internal();
   factory AlarmService() => _instance;
   AlarmService._internal() {
-    // Écoute des événements du player pour maintenir l'état propre
     _player.onPlayerComplete.listen((_) {
-      // lecture terminée naturellement
       _isPlaying = false;
       _currentAlarmId = null;
       _playStopTimer?.cancel();
@@ -18,7 +16,6 @@ class AlarmService {
     });
 
     _player.onPlayerStateChanged.listen((state) {
-      // utile pour debug si besoin
       print('[AlarmService] PlayerState: $state');
     });
   }
@@ -26,30 +23,23 @@ class AlarmService {
   final List<AlarmModel> alarms = [];
   final AudioPlayer _player = AudioPlayer();
   Timer? _timer;
-
-  // Timer pour forcer l'arrêt après 1 minute
   Timer? _playStopTimer;
 
-  // état et id de la lecture courante
   bool _isPlaying = false;
   String? _currentAlarmId;
-
-  // pour éviter de relancer la même alarme plusieurs fois dans la même minute
   final Map<String, DateTime> _lastPlayed = {};
 
   List<String> availableSounds = [
-    "assets/sounds/lakolosy_6h00.mp3",
-    "assets/sounds/lakolosy_6h45.mp3",
-    "assets/sounds/lakolosy_12h.mp3",
-    "assets/sounds/lakolosy_anjely_gabriely_Angelus_6h.mp3",
-    "assets/sounds/lakolosy_anjely_gabriely_maria.mp3",
-    "assets/sounds/lakolosy_Ave_Maria12h.mp3",
-    "assets/sounds/lakolosy_jozefa_be_voninahitra_06h30.mp3",
-    "assets/sounds/lakolosy_jozefa_mpitaiza_07h.mp3",
+    "assets/sounds/6h_Angelus.mp3",
+    "assets/sounds/12hAve_Maria.mp3",
+    "assets/sounds/18h.mp3",
+    "assets/sounds/Alahady_06h30 _06h45.mp3",
+    "assets/sounds/Alahady_06h45.mp3",
+    "assets/sounds/Alahady_07h_09h_Jesoa_Maria_Zozefa.mp3",
+    "assets/sounds/Alahady_07h_09h_Zozefa_be.mp3",
+    "assets/sounds/Mariazy.mp3",
   ];
 
-  /// Joue un son. [alarmId] est optionnel mais recommandé pour éviter
-  /// de relancer plusieurs fois la même alarme.
   Future<void> playSound(String path, [String? alarmId]) async {
     if (_isPlaying) {
       print('[AlarmService] playSound demandé mais déjà en cours -> skip');
@@ -59,25 +49,22 @@ class AlarmService {
     _isPlaying = true;
     _currentAlarmId = alarmId;
     try {
-      // Assure un mode adapté sur Android, et ne pas libérer la ressource automatiquement
       await _player.setPlayerMode(PlayerMode.mediaPlayer);
       await _player.setReleaseMode(ReleaseMode.stop);
 
       final assetPath = path.replaceFirst("assets/", "");
       print('[AlarmService] play -> $assetPath (alarmId=$alarmId)');
 
-      // Joue la source (AssetSource attend le chemin relatif aux assets déclarés)
       await _player.play(AssetSource(assetPath));
 
-      // Planifie un arrêt forcé après 1 minute si nécessaire
+      // Arrêt forcé après 1 min 30 sec
       _playStopTimer?.cancel();
-      _playStopTimer = Timer(const Duration(minutes: 1), () {
-        print('[AlarmService] Arrêt forcé après 1 minute');
+      _playStopTimer = Timer(const Duration(minutes: 2), () {
+        print('[AlarmService] Arrêt forcé après 2 min');
         stopSound();
       });
     } catch (e, st) {
       print('[AlarmService] Erreur playSound: $e\n$st');
-      // remets l'état à false en cas d'erreur
       _isPlaying = false;
       _currentAlarmId = null;
       _playStopTimer?.cancel();
@@ -120,7 +107,6 @@ class AlarmService {
 
   void _scheduleCheck() {
     _timer?.cancel();
-    // 30s est correct mais si tu veux réduire les risques de jank, tu peux monter à 60s
     _timer = Timer.periodic(const Duration(seconds: 30), (_) {
       _checkAlarms();
     });
@@ -131,18 +117,31 @@ class AlarmService {
     for (var alarm in alarms) {
       if (!alarm.isActive) continue;
 
-      if (alarm.days.contains(_dayName(now.weekday)) &&
+      // 🔔 Cas 1 : Alarme ponctuelle
+      if (alarm.date != null) {
+        if (alarm.date!.year == now.year &&
+            alarm.date!.month == now.month &&
+            alarm.date!.day == now.day &&
+            alarm.time.hour == now.hour &&
+            alarm.time.minute == now.minute) {
+          final last = _lastPlayed[alarm.id];
+          if (last == null || now.difference(last).inMinutes >= 1) {
+            playSound(alarm.sound, alarm.id);
+            _lastPlayed[alarm.id] = now;
+            alarm.isActive = false; // désactive après déclenchement
+            updateAlarm(alarm);
+          }
+        }
+      }
+      // 🔔 Cas 2 : Alarme récurrente
+      else if (alarm.days != null &&
+          alarm.days!.contains(_dayName(now.weekday)) &&
           alarm.time.hour == now.hour &&
           alarm.time.minute == now.minute) {
         final last = _lastPlayed[alarm.id];
         if (last == null || now.difference(last).inMinutes >= 1) {
-          // Passe l'id pour qu'on sache quelle alarme a déclenché
           playSound(alarm.sound, alarm.id);
           _lastPlayed[alarm.id] = now;
-        } else {
-          print(
-            '[AlarmService] Alarme ${alarm.id} déjà jouée il y a ${now.difference(last).inSeconds}s -> skip',
-          );
         }
       }
     }
@@ -169,7 +168,6 @@ class AlarmService {
     }
   }
 
-  /// Charger les alarmes sauvegardées au démarrage
   Future<void> loadAlarms() async {
     final loaded = await AlarmStorage.loadAlarms();
     alarms.clear();

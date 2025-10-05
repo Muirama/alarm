@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../models/alarm_model.dart';
 import '../services/alarm_service.dart';
@@ -13,151 +12,190 @@ class EditAlarmScreen extends StatefulWidget {
 }
 
 class _EditAlarmScreenState extends State<EditAlarmScreen> {
-  final AlarmService alarmService = AlarmService();
-  final List<String> days = [
-    "Lundi",
-    "Mardi",
-    "Mercredi",
-    "Jeudi",
-    "Vendredi",
-    "Samedi",
-    "Dimanche",
-  ];
-  final Set<String> selectedDays = {};
-  TimeOfDay? selectedTime;
-  String? selectedSound;
+  final _service = AlarmService();
+
+  late TimeOfDay _time;
+  DateTime? _selectedDate;
+  List<String> _selectedDays = [];
+  String _selectedSound = "";
+  bool _isOneTime = false;
 
   @override
   void initState() {
     super.initState();
     if (widget.alarm != null) {
-      selectedDays.addAll(widget.alarm!.days);
-      selectedTime = TimeOfDay.fromDateTime(widget.alarm!.time);
-      selectedSound = widget.alarm!.sound;
+      _time = TimeOfDay.fromDateTime(widget.alarm!.time);
+      _selectedDate = widget.alarm!.date;
+      _selectedDays = widget.alarm!.days ?? [];
+      _selectedSound = widget.alarm!.sound;
+      _isOneTime = widget.alarm!.isOneTime;
+    } else {
+      _time = const TimeOfDay(hour: 6, minute: 0);
+      _selectedSound = _service.availableSounds.first;
     }
   }
 
-  void saveAlarm() {
-    if (selectedDays.isEmpty || selectedTime == null || selectedSound == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Choisir au moins un jour, une heure et un son"),
-        ),
-      );
-      return;
-    }
-
+  void _saveAlarm() async {
     final now = DateTime.now();
-    final dateTime = DateTime(
+    final alarmTime = DateTime(
       now.year,
       now.month,
       now.day,
-      selectedTime!.hour,
-      selectedTime!.minute,
+      _time.hour,
+      _time.minute,
     );
 
-    final alarm = AlarmModel(
+    final newAlarm = AlarmModel(
       id: widget.alarm?.id ?? const Uuid().v4(),
-      days: selectedDays.toList(),
-      time: dateTime,
-      sound: selectedSound!,
+      days: _isOneTime ? null : _selectedDays,
+      time: alarmTime,
+      date: _isOneTime ? _selectedDate : null,
+      sound: _selectedSound,
+      isActive: true,
     );
 
     if (widget.alarm == null) {
-      alarmService.addAlarm(alarm);
+      await _service.addAlarm(newAlarm);
     } else {
-      alarmService.updateAlarm(alarm);
+      await _service.updateAlarm(newAlarm);
     }
+    if (mounted) Navigator.pop(context);
+  }
 
-    Navigator.pop(context);
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: now,
+      lastDate: DateTime(now.year + 2),
+    );
+    if (picked != null) {
+      setState(() => _selectedDate = picked);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Nouvel Alarme")),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Wrap(
-              spacing: 8,
-              children:
-                  days.map((d) {
-                    final selected = selectedDays.contains(d);
-                    return FilterChip(
-                      label: Text(d),
-                      selected: selected,
-                      onSelected: (val) {
-                        setState(() {
-                          if (val) {
-                            selectedDays.add(d);
-                          } else {
-                            selectedDays.remove(d);
-                          }
-                        });
-                      },
-                    );
-                  }).toList(),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                ElevatedButton(
-                  onPressed: () async {
-                    final time = await showTimePicker(
-                      context: context,
-                      initialTime: selectedTime ?? TimeOfDay.now(),
-                    );
-                    if (time != null) {
-                      setState(() {
-                        selectedTime = time;
-                      });
-                    }
-                  },
-                  child: const Text("Choisir heure"),
-                ),
-                const SizedBox(width: 16),
-                Text(
-                  selectedTime == null
-                      ? "Pas d'heure choisie"
-                      : DateFormat.Hm().format(
-                        DateTime(
-                          0,
-                          0,
-                          0,
-                          selectedTime!.hour,
-                          selectedTime!.minute,
-                        ),
-                      ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            DropdownButton<String>(
-              isExpanded: true,
-              hint: const Text("Choisir un son"),
-              value: selectedSound,
-              items:
-                  alarmService.availableSounds.map((s) {
-                    return DropdownMenuItem(
-                      value: s,
-                      child: Text(
-                        s.split("/").last,
-                        overflow:
-                            TextOverflow.ellipsis,
-                      ),
-                    );
-                  }).toList(),
-              onChanged: (val) => setState(() => selectedSound = val),
-            ),
-            const Spacer(),
-            ElevatedButton(
-              onPressed: saveAlarm,
-              child: const Text("Enregistrer"),
-            ),
-          ],
+      appBar: AppBar(
+        title: Text(
+          widget.alarm == null ? "Nouvelle alarme" : "Modifier alarme",
         ),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Card(
+            child: SwitchListTile(
+              title: const Text("Alarme ponctuelle (date spécifique)"),
+              secondary: const Icon(Icons.event),
+              value: _isOneTime,
+              onChanged: (val) => setState(() => _isOneTime = val),
+            ),
+          ),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.access_time),
+              title: const Text("Heure"),
+              subtitle: Text(
+                "${_time.hour.toString().padLeft(2, '0')}:${_time.minute.toString().padLeft(2, '0')}",
+              ),
+              onTap: () async {
+                final picked = await showTimePicker(
+                  context: context,
+                  initialTime: _time,
+                );
+                if (picked != null) setState(() => _time = picked);
+              },
+            ),
+          ),
+          if (_isOneTime)
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.calendar_today),
+                title: const Text("Date"),
+                subtitle: Text(
+                  _selectedDate != null
+                      ? "${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}"
+                      : "Choisir une date",
+                ),
+                onTap: _pickDate,
+              ),
+            ),
+          if (!_isOneTime)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (var day in [
+                      "Lundi",
+                      "Mardi",
+                      "Mercredi",
+                      "Jeudi",
+                      "Vendredi",
+                      "Samedi",
+                      "Dimanche",
+                    ])
+                      FilterChip(
+                        label: Text(day),
+                        selected: _selectedDays.contains(day),
+                        onSelected: (sel) {
+                          setState(() {
+                            if (sel) {
+                              _selectedDays.add(day);
+                            } else {
+                              _selectedDays.remove(day);
+                            }
+                          });
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: DropdownButtonFormField<String>(
+                value: _selectedSound,
+                isExpanded: true,
+                items:
+                    _service.availableSounds.map((s) {
+                      return DropdownMenuItem(
+                        value: s,
+                        child: Text(
+                          s.split("/").last,
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      );
+                    }).toList(),
+                onChanged: (val) {
+                  if (val != null) setState(() => _selectedSound = val);
+                },
+                decoration: const InputDecoration(
+                  labelText: "Sonnerie",
+                  icon: Icon(Icons.music_note),
+                  border: InputBorder.none,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _saveAlarm,
+              icon: const Icon(Icons.save),
+              label: const Text("Enregistrer"),
+            ),
+          ),
+        ],
       ),
     );
   }
