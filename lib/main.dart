@@ -1,14 +1,73 @@
+import 'dart:isolate';
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'screens/home_screen.dart';
 import 'services/alarm_service.dart';
 
-void main() async {
+// 🔔 Plugin global
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
+
+// Identifiant du port pour la communication entre Isolate principal et AlarmManager
+const String isolateName = 'alarm_isolate_port';
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // ✅ Initialisation du Android Alarm Manager
+  await AndroidAlarmManager.initialize();
+
+  // ✅ Initialisation des notifications
+  const AndroidInitializationSettings initializationSettingsAndroid =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
+
+  const InitializationSettings initializationSettings = InitializationSettings(
+    android: initializationSettingsAndroid,
+  );
+
+  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+
+  // ✅ Charger les alarmes sauvegardées
   final alarmService = AlarmService();
   await alarmService.loadAlarms();
 
   runApp(const AlarmApp());
+}
+
+/// 🔔 Fonction de callback (exécutée même si l’app est fermée)
+Future<void> alarmCallback(String soundName) async {
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+
+  // Convertir le nom de son (ex: "angelus_6h.mp3") → sans extension
+  final String soundBase = soundName.split('/').last.split('.').first;
+
+  print('[AlarmCallback] Notification avec son: $soundBase');
+
+  final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+    'alarm_channel',
+    'Alarm Notifications',
+    channelDescription: 'Notifications pour les alarmes catholiques',
+    importance: Importance.max,
+    priority: Priority.high,
+    playSound: true,
+    sound: RawResourceAndroidNotificationSound(soundBase),
+    fullScreenIntent: true,
+    visibility: NotificationVisibility.public,
+  );
+
+  final NotificationDetails platformDetails = NotificationDetails(
+    android: androidDetails,
+  );
+
+  await flutterLocalNotificationsPlugin.show(
+    DateTime.now().millisecondsSinceEpoch ~/ 1000,
+    '⏰ Réveil Catholique',
+    'Il est temps de prier 🙏',
+    platformDetails,
+  );
 }
 
 class AlarmApp extends StatelessWidget {
@@ -20,11 +79,11 @@ class AlarmApp extends StatelessWidget {
       title: 'Réveil Catholique',
       theme: ThemeData(
         brightness: Brightness.light,
-        primaryColor: const Color(0xFF1E88E5), // bleu marial
-        scaffoldBackgroundColor: const Color(0xFFF9F9F9), // fond clair
+        primaryColor: const Color(0xFF1E88E5),
+        scaffoldBackgroundColor: const Color(0xFFF9F9F9),
         colorScheme: ColorScheme.fromSwatch().copyWith(
           primary: const Color(0xFF1E88E5),
-          secondary: const Color(0xFFFFD54F), // doré
+          secondary: const Color(0xFFFFD54F),
         ),
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFF1E88E5),
@@ -33,9 +92,9 @@ class AlarmApp extends StatelessWidget {
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Color(0xFF1E88E5),
+            backgroundColor: const Color(0xFF1E88E5),
             foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
+            shape: const RoundedRectangleBorder(
               borderRadius: BorderRadius.all(Radius.circular(12)),
             ),
           ),
@@ -54,6 +113,5 @@ class AlarmApp extends StatelessWidget {
       ),
       home: const HomeScreen(),
     );
-    ;
   }
 }

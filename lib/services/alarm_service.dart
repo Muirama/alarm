@@ -31,7 +31,7 @@ class AlarmService {
 
   List<String> availableSounds = [
     "assets/sounds/6h_Angelus.mp3",
-    "assets/sounds/12hAve_Maria.mp3",
+    "assets/sounds/12hAve_maria.mp3",
     "assets/sounds/18h.mp3",
     "assets/sounds/Alahady_06h30 _06h45.mp3",
     "assets/sounds/Alahady_06h45.mp3",
@@ -59,8 +59,8 @@ class AlarmService {
 
       // Arrêt forcé après 1 min 30 sec
       _playStopTimer?.cancel();
-      _playStopTimer = Timer(const Duration(minutes: 2), () {
-        print('[AlarmService] Arrêt forcé après 2 min');
+      _playStopTimer = Timer(const Duration(minutes: 1, seconds: 30), () {
+        print('[AlarmService] Arrêt forcé après 1 minute 30');
         stopSound();
       });
     } catch (e, st) {

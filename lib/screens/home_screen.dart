@@ -107,11 +107,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           Switch(
                             value: alarm.isActive,
-                            onChanged: (val) {
+                            onChanged: (val) async {
                               setState(() {
                                 alarm.isActive = val;
-                                alarmService.updateAlarm(alarm);
                               });
+                              await alarmService.updateAlarm(alarm);
                             },
                           ),
                           IconButton(
@@ -127,7 +127,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           IconButton(
                             icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () {
+                            onPressed: () async {
                               setState(() {
                                 alarmService.removeAlarm(alarm.id);
                               });
