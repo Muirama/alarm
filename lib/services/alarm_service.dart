@@ -30,14 +30,14 @@ class AlarmService {
   final Map<String, DateTime> _lastPlayed = {};
 
   List<String> availableSounds = [
-    "assets/sounds/6h_Angelus.mp3",
-    "assets/sounds/12hAve_maria.mp3",
-    "assets/sounds/18h.mp3",
-    "assets/sounds/Alahady_06h30 _06h45.mp3",
-    "assets/sounds/Alahady_06h45.mp3",
-    "assets/sounds/Alahady_07h_09h_Jesoa_Maria_Zozefa.mp3",
-    "assets/sounds/Alahady_07h_09h_Zozefa_be.mp3",
-    "assets/sounds/Mariazy.mp3",
+    "assets/sounds/alahady_06h30_06h45.mp3",
+    "assets/sounds/alahady_06h45.mp3",
+    "assets/sounds/alahady_07h_09h_jmf.mp3",
+    "assets/sounds/alahady_07h_09h_zozefa_be.mp3",
+    "assets/sounds/angelus_6h.mp3",
+    "assets/sounds/ave_maria_12h.mp3",
+    "assets/sounds/lakolosy_18h.mp3",
+    "assets/sounds/mariazy.mp3",
   ];
 
   Future<void> playSound(String path, [String? alarmId]) async {
@@ -57,7 +57,6 @@ class AlarmService {
 
       await _player.play(AssetSource(assetPath));
 
-      // Arrêt forcé après 1 min 30 sec
       _playStopTimer?.cancel();
       _playStopTimer = Timer(const Duration(minutes: 1, seconds: 30), () {
         print('[AlarmService] Arrêt forcé après 1 minute 30');
@@ -117,7 +116,6 @@ class AlarmService {
     for (var alarm in alarms) {
       if (!alarm.isActive) continue;
 
-      // 🔔 Cas 1 : Alarme ponctuelle
       if (alarm.date != null) {
         if (alarm.date!.year == now.year &&
             alarm.date!.month == now.month &&
@@ -128,12 +126,11 @@ class AlarmService {
           if (last == null || now.difference(last).inMinutes >= 1) {
             playSound(alarm.sound, alarm.id);
             _lastPlayed[alarm.id] = now;
-            alarm.isActive = false; // désactive après déclenchement
+            alarm.isActive = false;
             updateAlarm(alarm);
           }
         }
       }
-      // 🔔 Cas 2 : Alarme récurrente
       else if (alarm.days != null &&
           alarm.days!.contains(_dayName(now.weekday)) &&
           alarm.time.hour == now.hour &&

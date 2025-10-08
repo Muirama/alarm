@@ -6,20 +6,16 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'screens/home_screen.dart';
 import 'services/alarm_service.dart';
 
-// 🔔 Plugin global
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
-// Identifiant du port pour la communication entre Isolate principal et AlarmManager
 const String isolateName = 'alarm_isolate_port';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ✅ Initialisation du Android Alarm Manager
   await AndroidAlarmManager.initialize();
 
-  // ✅ Initialisation des notifications
   const AndroidInitializationSettings initializationSettingsAndroid =
       AndroidInitializationSettings('@mipmap/ic_launcher');
 
@@ -29,19 +25,16 @@ Future<void> main() async {
 
   await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 
-  // ✅ Charger les alarmes sauvegardées
   final alarmService = AlarmService();
   await alarmService.loadAlarms();
 
   runApp(const AlarmApp());
 }
 
-/// 🔔 Fonction de callback (exécutée même si l’app est fermée)
 Future<void> alarmCallback(String soundName) async {
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
-  // Convertir le nom de son (ex: "angelus_6h.mp3") → sans extension
   final String soundBase = soundName.split('/').last.split('.').first;
 
   print('[AlarmCallback] Notification avec son: $soundBase');
