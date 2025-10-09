@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../services/alarm_service.dart';
+import 'package:intl/intl.dart';
 import '../models/alarm_model.dart';
+import '../services/alarm_repository.dart';
 import 'edit_alarm_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -11,146 +12,168 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final AlarmService alarmService = AlarmService();
-  String? selectedSound;
+  final repo = AlarmRepository();
+
+  @override
+  void initState() {
+    super.initState();
+    // already initialized in main; just refresh UI
+    setState(() {});
+  }
+
+  String _formatTime(DateTime dt) => DateFormat('HH:mm').format(dt);
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final alarms = repo.alarms;
+
     return Scaffold(
-      appBar: AppBar(title: const Text(" ")),
+      appBar: AppBar(
+        title: const Text('Réveil Catholique'),
+        centerTitle: true,
+        elevation: 2,
+      ),
       body: Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.all(12),
         child: Column(
           children: [
+            // header card: gestion rapide du son (optionnel)
             Card(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  children: [
-                    DropdownButtonFormField<String>(
-                      isExpanded: true,
-                      hint: const Text("Choisir un son"),
-                      value: selectedSound,
-                      items:
-                          alarmService.availableSounds.map((s) {
-                            return DropdownMenuItem(
-                              value: s,
-                              child: Text(
-                                s.split("/").last,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            );
-                          }).toList(),
-                      onChanged: (val) => setState(() => selectedSound = val),
-                      decoration: const InputDecoration(
-                        labelText: "Sonnerie de test",
-                        icon: Icon(Icons.music_note),
-                        border: InputBorder.none,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        ElevatedButton.icon(
-                          onPressed:
-                              selectedSound == null
-                                  ? null
-                                  : () =>
-                                      alarmService.playSound(selectedSound!),
-                          icon: const Icon(Icons.play_arrow),
-                          label: const Text("Faire sonner"),
-                        ),
-                        const SizedBox(width: 10),
-                        ElevatedButton.icon(
-                          onPressed: () => alarmService.stopSound(),
-                          icon: const Icon(Icons.stop),
-                          label: const Text("Arrêter"),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+              shape:
+                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              elevation: 3,
+              child: ListTile(
+                leading: const Icon(Icons.music_note),
+                title: const Text('Sons disponibles'),
+                subtitle: Text('Choisir son dans l’écran d’édition'),
               ),
             ),
-            const Divider(),
+            const SizedBox(height: 12),
             Expanded(
-              child: ListView.builder(
-                itemCount: alarmService.alarms.length,
-                itemBuilder: (context, index) {
-                  final alarm = alarmService.alarms[index];
-                  final timeText =
-                      "${alarm.time.hour.toString().padLeft(2, '0')}:${alarm.time.minute.toString().padLeft(2, '0')}";
-                  final desc =
-                      alarm.isOneTime
-                          ? "📅 ${alarm.date!.day}/${alarm.date!.month}/${alarm.date!.year}"
-                          : "🔁 ${(alarm.days ?? []).join(", ")}";
-
-                  return Card(
-                    child: ListTile(
-                      leading: Icon(
-                        Icons.alarm,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: 32,
+              child: alarms.isEmpty
+                  ? Center(
+                      child: Text(
+                        'Aucune alarme. Appuie sur + pour en ajouter.',
+                        style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
                       ),
-                      title: Text(
-                        timeText,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      subtitle: Text("$desc\n${alarm.sound.split("/").last}"),
-                      isThreeLine: true,
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Switch(
-                            value: alarm.isActive,
-                            onChanged: (val) async {
-                              setState(() {
-                                alarm.isActive = val;
-                              });
-                              await alarmService.updateAlarm(alarm);
-                            },
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.edit, color: Colors.orange),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => EditAlarmScreen(alarm: alarm),
+                    )
+                  : ListView.builder(
+                      itemCount: alarms.length,
+                      itemBuilder: (context, i) {
+                        final a = alarms[i];
+                        final desc = a.isOneTime
+                            ? '📅 ${a.date!.day}/${a.date!.month}/${a.date!.year}'
+                            : '🔁 ${(a.days ?? []).join(", ")}';
+                        return Card(
+                          margin: const EdgeInsets.symmetric(vertical: 8),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                          elevation: 3,
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                                vertical: 12, horizontal: 16),
+                            leading: Icon(
+                              Icons.alarm,
+                              color: a.isActive
+                                  ? theme.colorScheme.primary
+                                  : Colors.grey,
+                              size: 36,
+                            ),
+                            title: Text(
+                              _formatTime(a.time),
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: a.isActive ? Colors.black : Colors.grey[500],
+                              ),
+                            ),
+                            subtitle: Text(
+                              '$desc\n${a.soundAsset.split("/").last}',
+                              style: TextStyle(
+                                  color: a.isActive ? Colors.black54 : Colors.grey[400]),
+                              maxLines: 2,
+                            ),
+                            isThreeLine: true,
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Switch visible when inactive (contrasted colors)
+                                Switch(
+                                  value: a.isActive,
+                                  onChanged: (val) async {
+                                    await repo.toggleActive(a.id, val);
+                                    setState(() {});
+                                  },
+                                  activeColor: theme.colorScheme.primary,
+                                  inactiveThumbColor: Colors.grey.shade700,
+                                  inactiveTrackColor: Colors.grey.shade300,
                                 ),
-                              ).then((_) => setState(() {}));
-                            },
+                                IconButton(
+                                  icon: const Icon(Icons.edit, color: Colors.orange),
+                                  onPressed: () async {
+                                    final res = await Navigator.push<AlarmModel?>(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => EditAlarmScreen(alarm: a),
+                                      ),
+                                    );
+                                    if (res != null) {
+                                      // update returned model
+                                      await repo.updateAlarm(res);
+                                      setState(() {});
+                                    }
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete, color: Colors.redAccent),
+                                  onPressed: () async {
+                                    final ok = await showDialog<bool>(
+                                      context: context,
+                                      builder: (c) => AlertDialog(
+                                        title: const Text('Supprimer cette alarme ?'),
+                                        actions: [
+                                          TextButton(
+                                              onPressed: () => Navigator.pop(c, false),
+                                              child: const Text('Annuler')),
+                                          TextButton(
+                                              onPressed: () => Navigator.pop(c, true),
+                                              child: const Text(
+                                                'Supprimer',
+                                                style: TextStyle(color: Colors.red),
+                                              )),
+                                        ],
+                                      ),
+                                    );
+                                    if (ok == true) {
+                                      await repo.deleteAlarm(a.id);
+                                      setState(() {});
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () async {
-                              setState(() {
-                                alarmService.removeAlarm(alarm.id);
-                              });
-                            },
-                          ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          final newAlarm = await Navigator.push<AlarmModel?>(
             context,
             MaterialPageRoute(builder: (_) => const EditAlarmScreen()),
-          ).then((_) => setState(() {}));
+          );
+          if (newAlarm != null) {
+            await repo.createAlarm(newAlarm);
+            setState(() {});
+          }
         },
-        child: const Icon(Icons.add),
+        icon: const Icon(Icons.add),
+        label: const Text('Nouvelle alarme'),
       ),
     );
   }
