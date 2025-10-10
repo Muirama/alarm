@@ -3,11 +3,13 @@ import 'dart:io';
 import 'package:alarm/alarm.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/alarm_model.dart';
+import 'custom_alarm_service.dart';
 
 class AlarmRepository {
   static const _storageKey = 'stored_alarms_v1';
   final List<AlarmModel> alarms = [];
   StreamSubscription? _ringingSub;
+  final CustomAlarmService _customAlarmService = CustomAlarmService();
   
   AlarmRepository._internal();
   static final AlarmRepository _instance = AlarmRepository._internal();
@@ -15,6 +17,7 @@ class AlarmRepository {
 
   Future<void> init() async {
     await Alarm.init();
+    await _customAlarmService.init();
     await _loadFromStorage();
     _listenRinging();
   }
@@ -86,6 +89,7 @@ class AlarmRepository {
   /// Update an existing alarm: cancel previous native scheduled alarm (if any) then schedule new
   Future<void> updateAlarm(AlarmModel model) async {
     await Alarm.stop(model.id); // stop previous (await)
+    await _customAlarmService.cancelAlarm(model.id); // stop custom alarm too
     if (model.isActive) {
       await _scheduleNative(model);
     }
@@ -97,6 +101,7 @@ class AlarmRepository {
   /// Remove alarm (both local and native)
   Future<void> deleteAlarm(int id) async {
     await Alarm.stop(id);
+    await _customAlarmService.cancelAlarm(id);
     alarms.removeWhere((a) => a.id == id);
     await _saveToStorage();
   }
@@ -108,6 +113,7 @@ class AlarmRepository {
     a.isActive = active;
     if (!active) {
       await Alarm.stop(id);
+      await _customAlarmService.cancelAlarm(id);
     } else {
       await _scheduleNative(a);
     }
@@ -117,25 +123,47 @@ class AlarmRepository {
   Future<void> _scheduleNative(AlarmModel model) async {
     final dateTime = model.time;
 
-    final settings = AlarmSettings(
-      id: model.id,
-      dateTime: dateTime,
-      assetAudioPath: model.soundAsset,
-      loopAudio: true,
-      vibrate: true,
-      androidFullScreenIntent: true,
-      warningNotificationOnKill: Platform.isIOS,
-      notificationSettings: NotificationSettings(
-        title: 'Réveil',
-        body: 'Il est temps de prier',
-        stopButton: 'Arrêter',
-        icon: 'notification_icon',
-      ),
-      // utilise un constructeur valide : fixed (pas de fade par défaut)
-      volumeSettings: VolumeSettings.fixed(volume: null, volumeEnforced: false),
-    );
+    // 🎯 NOUVELLE APPROCHE: Utiliser notre service personnalisé
+    try {
+      await _customAlarmService.scheduleAlarm(
+        id: model.id,
+        dateTime: dateTime,
+        soundPath: model.soundAsset,
+        title: 'Réveil Catholique',
+        body: 'Il est temps de prier 🙏',
+      );
+      
+      print('✅ Alarme ${model.id} programmée avec notre service personnalisé');
+      return; // Si ça marche, on s'arrête là
+      
+    } catch (e) {
+      print('❌ Erreur service personnalisé: $e');
+    }
 
-    await Alarm.set(alarmSettings: settings);
+    // 🔄 FALLBACK: Utiliser le plugin alarm si notre service échoue
+    try {
+      final settings = AlarmSettings(
+        id: model.id,
+        dateTime: dateTime,
+        assetAudioPath: model.soundAsset,
+        loopAudio: true,
+        vibrate: true,
+        androidFullScreenIntent: true,
+        warningNotificationOnKill: Platform.isIOS,
+        notificationSettings: NotificationSettings(
+          title: 'Réveil Catholique (Fallback)',
+          body: 'Il est temps de prier 🙏',
+          stopButton: 'Arrêter',
+        ),
+        volumeSettings: VolumeSettings.fixed(volume: 1.0, volumeEnforced: true),
+      );
+
+      await Alarm.set(alarmSettings: settings);
+      print('🔄 Alarme ${model.id} programmée avec plugin alarm (fallback)');
+      
+    } catch (e) {
+      print('💥 Erreur critique: $e');
+    }
   }
 
   void _listenRinging() {
@@ -188,9 +216,9 @@ class AlarmRepository {
             await _saveToStorage();
           }
         }
-      } catch (e, st) {
+      } catch (e) {
         // log silently - évite crash si l'event arrive et qu'il y a un souci
-        // print('Error handling ringing event: $e\n$st');
+        print('Error handling ringing event: $e');
       }
     });
   }

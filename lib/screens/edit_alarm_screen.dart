@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
+import 'package:audioplayers/audioplayers.dart';
 import '../models/alarm_model.dart';
 import '../services/alarm_repository.dart';
 
@@ -15,6 +16,8 @@ class EditAlarmScreen extends StatefulWidget {
 
 class _EditAlarmScreenState extends State<EditAlarmScreen> {
   final repo = AlarmRepository();
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  bool _isTestingSound = false;
 
   late TimeOfDay _time;
   DateTime? _date;
@@ -48,6 +51,59 @@ class _EditAlarmScreenState extends State<EditAlarmScreen> {
       _time = TimeOfDay(hour: max(7, now.hour), minute: 0);
       _isOneTime = false;
       _sound = availableSounds.first;
+    }
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  Future<void> _testSound() async {
+    try {
+      if (_isTestingSound) {
+        // Arrêter le test en cours
+        await _audioPlayer.stop();
+        setState(() => _isTestingSound = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Test du son arrêté'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+        return;
+      }
+
+      // Commencer le test
+      setState(() => _isTestingSound = true);
+      await _audioPlayer.stop(); // S'assurer qu'aucun son ne joue
+      
+      // Jouer le son sélectionné
+      await _audioPlayer.play(AssetSource(_sound.replaceFirst('assets/', '')));
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Test du son en cours... Appuyez à nouveau pour arrêter'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      // Écouter la fin du son pour réinitialiser l'état
+      _audioPlayer.onPlayerComplete.listen((_) {
+        if (mounted) {
+          setState(() => _isTestingSound = false);
+        }
+      });
+      
+    } catch (e) {
+      setState(() => _isTestingSound = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur lors du test du son: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -234,23 +290,37 @@ class _EditAlarmScreenState extends State<EditAlarmScreen> {
             elevation: 2,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: DropdownButtonFormField<String>(
-                value: _sound,
-                decoration: const InputDecoration(
-                  labelText: 'Sonnerie',
-                  border: OutlineInputBorder(),
-                ),
-                items:
-                    availableSounds
-                        .map(
-                          (s) => DropdownMenuItem(
-                            value: s,
-                            child: Text(s.split('/').last),
-                          ),
-                        )
-                        .toList(),
-                onChanged:
-                    (v) => setState(() => _sound = v ?? availableSounds.first),
+              child: Column(
+                children: [
+                  DropdownButtonFormField<String>(
+                    value: _sound,
+                    decoration: const InputDecoration(
+                      labelText: 'Sonnerie',
+                      border: OutlineInputBorder(),
+                    ),
+                    items:
+                        availableSounds
+                            .map(
+                              (s) => DropdownMenuItem(
+                                value: s,
+                                child: Text(s.split('/').last),
+                              ),
+                            )
+                            .toList(),
+                    onChanged:
+                        (v) => setState(() => _sound = v ?? availableSounds.first),
+                  ),
+                  const SizedBox(height: 8),
+                  ElevatedButton.icon(
+                    onPressed: _testSound,
+                    icon: Icon(_isTestingSound ? Icons.stop : Icons.play_arrow),
+                    label: Text(_isTestingSound ? 'Arrêter le test' : 'Tester le son'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _isTestingSound ? Colors.red : Colors.orange,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
