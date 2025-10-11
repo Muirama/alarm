@@ -3,6 +3,22 @@ import 'dart:io';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
+
+// 🔥 Callback global pour AndroidAlarmManager (doit être au niveau global)
+@pragma('vm:entry-point')
+void _androidAlarmCallback(int id, Map<String, dynamic> params) async {
+  print('🚨 CALLBACK ANDROID ALARM: $id');
+  
+  // Récupérer les paramètres
+  final soundPath = params['soundPath'] as String;
+  final title = params['title'] as String;
+  final body = params['body'] as String;
+  
+  // Déclencher l'alarme via le service
+  final service = CustomAlarmService();
+  await service._triggerAlarmFromCallback(id, soundPath, title, body);
+}
 
 class CustomAlarmService {
   static final CustomAlarmService _instance = CustomAlarmService._internal();
@@ -20,6 +36,11 @@ class CustomAlarmService {
   int? _currentAlarmId;
 
   Future<void> init() async {
+    // Initialiser AndroidAlarmManager pour les alarmes système
+    if (Platform.isAndroid) {
+      await AndroidAlarmManager.initialize();
+    }
+    
     // Initialiser les notifications
     await _initNotifications();
     
@@ -74,10 +95,39 @@ class CustomAlarmService {
     print('🔔 Déclenchement dans ${duration.inMinutes} minutes et ${duration.inSeconds % 60} secondes');
     print('📊 Total alarmes programmées: ${_alarmTimers.length + 1}');
 
-    // Programmer l'alarme avec son propre timer
-    _alarmTimers[id] = Timer(duration, () async {
-      await _triggerAlarm(id, soundPath, title, body);
-    });
+    // 🎯 STRATÉGIE HYBRIDE selon la durée
+    if (duration.inMinutes <= 10) {
+      // ⚡ Courte durée (≤ 10 min) : Utiliser Timer Dart (plus rapide)
+      print('⚡ Utilisation Timer Dart (durée courte)');
+      _alarmTimers[id] = Timer(duration, () async {
+        await _triggerAlarm(id, soundPath, title, body);
+      });
+    } else {
+      // 🛡️ Longue durée (> 10 min) : Utiliser AlarmManager Android (survit au Doze)
+      print('🛡️ Utilisation AlarmManager Android (durée longue)');
+      if (Platform.isAndroid) {
+        await AndroidAlarmManager.oneShot(
+          duration,
+          id,
+          _androidAlarmCallback,
+          alarmClock: true, // Importante : alarme haute priorité
+          allowWhileIdle: true, // Fonctionne même en mode Doze
+          exact: true, // Heure exacte
+          wakeup: true, // Réveille le téléphone
+          params: {
+            'id': id,
+            'soundPath': soundPath,
+            'title': title,
+            'body': body,
+          },
+        );
+      } else {
+        // Fallback pour iOS : utiliser Timer
+        _alarmTimers[id] = Timer(duration, () async {
+          await _triggerAlarm(id, soundPath, title, body);
+        });
+      }
+    }
     
     print('✅ Alarme $id ajoutée. IDs programmés: ${_alarmTimers.keys.toList()}');
   }
@@ -103,6 +153,12 @@ class CustomAlarmService {
     _soundTimers[id] = Timer(const Duration(minutes: 2), () async {
       await stopAlarm(id);
     });
+  }
+
+  // 🔥 Méthode spéciale pour les callbacks AndroidAlarmManager
+  Future<void> _triggerAlarmFromCallback(int id, String soundPath, String title, String body) async {
+    print('🔥 Déclenchement depuis callback Android: $id');
+    await _triggerAlarm(id, soundPath, title, body);
   }
 
   Future<void> _showAlarmNotification(int id, String title, String body) async {
@@ -185,9 +241,19 @@ class CustomAlarmService {
   }
 
   Future<void> cancelAlarm(int id) async {
-    // Annuler le timer de programmation pour cette alarme
+    // Annuler le timer de programmation pour cette alarme (si c'était un Timer)
     _alarmTimers[id]?.cancel();
     _alarmTimers.remove(id);
+    
+    // Annuler l'alarme AndroidAlarmManager (si c'était une alarme système)
+    if (Platform.isAndroid) {
+      try {
+        await AndroidAlarmManager.cancel(id);
+        print('🛡️ Alarme Android $id annulée');
+      } catch (e) {
+        print('⚠️ Erreur annulation alarm Android: $e');
+      }
+    }
     
     // Arrêter l'alarme si elle sonne
     await stopAlarm(id);
