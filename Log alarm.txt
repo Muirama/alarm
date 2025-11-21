@@ -1,0 +1,40 @@
+I/flutter (10118): [AlarmService] Programmation récurrente: 2025-11-21 11:00:00.000 (id=112255330)
+I/Choreographer(10118): Skipped 32 frames!  The application may be doing too much work on its main thread.
+W/Looper  (10118): PerfMonitor doFrame : time=1ms vsyncFrame=0 latency=542ms procState=2 historyMsgCount=1
+I/flutter (10118): [AlarmService] Programmation récurrente: 2025-11-21 11:10:00.000 (id=196492882)
+E/libEGL  (10118): call to OpenGL ES API with no current context (logged once per thread)
+I/flutter (10118): [AlarmService] Programmation récurrente: 2025-11-21 11:20:00.000 (id=761905438)
+I/GED     (10118): ged_boost_gpu_freq, level 100, eOrigin 2, final_idx 2, oppidx_max 2, oppidx_min 0
+V/PhoneWindow(10118): DecorView setVisiblity: visibility = 4, Parent = android.view.ViewRootImpl@672eb51, this 
+= DecorView@4470fb6[MainActivity]
+I/GED     (10118): ged_boost_gpu_freq, level 100, eOrigin 2, final_idx 2, oppidx_max 2, oppidx_min 0
+W/Looper  (10118): PerfMonitor doFrame : time=40ms vsyncFrame=0 latency=467ms procState=12 historyMsgCount=1 (msgIndex=1 wall=466ms seq=173 running=391ms runnable=9ms h=android.app.ActivityThread$H w=159)
+I/flutter (10118): [AndroidAlarmCallback] Déclenchée: id=112255330, params={alarmId: 09af920f-0b7f-470e-92a8-f40d1ccc9403, sound: assets/sounds/ave_maria_12h.mp3, recurring: true}
+I/flutter (10118): [AlarmService] play -> sounds/ave_maria_12h.mp3 (alarmId=09af920f-0b7f-470e-92a8-f40d1ccc9403)
+V/MediaPlayer(10118): resetDrmState:  mDrmInfo=null mDrmProvisioningThread=null mPrepareDrmInProgress=false mActiveDrmScheme=false
+V/MediaPlayer(10118): cleanDrmObj: mDrmObj=null mDrmSessionId=null
+I/flutter (10118): [AlarmService] PlayerState: PlayerState.playing
+I/flutter (10118): [AndroidAlarmCallback] Pas de prochaine occurrence trouvée
+I/flutter (10118): [AlarmService] onPlayerComplete -> stopped
+I/flutter (10118): [AlarmService] PlayerState: PlayerState.completed
+I/flutter (10118): [AndroidAlarmCallback] Déclenchée: id=196492882, params={alarmId: e7bc6f8f-607e-4355-a335-930bffd7ad3d, sound: assets/sounds/angelus_6h.mp3, recurring: true}
+I/flutter (10118): [AlarmService] play -> sounds/angelus_6h.mp3 (alarmId=e7bc6f8f-607e-4355-a335-930bffd7ad3d)
+V/MediaPlayer(10118): resetDrmState:  mDrmInfo=null mDrmProvisioningThread=null mPrepareDrmInProgress=false mActiveDrmScheme=false
+V/MediaPlayer(10118): cleanDrmObj: mDrmObj=null mDrmSessionId=null
+V/MediaPlayer(10118): resetDrmState:  mDrmInfo=null mDrmProvisioningThread=null mPrepareDrmInProgress=false mActiveDrmScheme=false
+V/MediaPlayer(10118): cleanDrmObj: mDrmObj=null mDrmSessionId=null
+I/flutter (10118): [AlarmService] PlayerState: PlayerState.playing
+I/flutter (10118): [AndroidAlarmCallback] Pas de prochaine occurrence trouvée
+I/flutter (10118): [AlarmService] Arrêt forcé après 1 minute 30
+I/flutter (10118): [AlarmService] stopSound -> done
+I/flutter (10118): [AlarmService] PlayerState: PlayerState.stopped
+I/flutter (10118): [AndroidAlarmCallback] Déclenchée: id=761905438, params={alarmId: e41de435-0957-4497-883b-4c303a2b2227, sound: assets/sounds/mariazy.mp3, recurring: true}
+I/flutter (10118): [AlarmService] play -> sounds/mariazy.mp3 (alarmId=e41de435-0957-4497-883b-4c303a2b2227)
+V/MediaPlayer(10118): resetDrmState:  mDrmInfo=null mDrmProvisioningThread=null mPrepareDrmInProgress=false mActiveDrmScheme=false
+V/MediaPlayer(10118): cleanDrmObj: mDrmObj=null mDrmSessionId=null
+V/MediaPlayer(10118): resetDrmState:  mDrmInfo=null mDrmProvisioningThread=null mPrepareDrmInProgress=false mActiveDrmScheme=false
+V/MediaPlayer(10118): cleanDrmObj: mDrmObj=null mDrmSessionId=null
+I/flutter (10118): [AlarmService] PlayerState: PlayerState.playing
+I/flutter (10118): [AndroidAlarmCallback] Pas de prochaine occurrence trouvée
+I/flutter (10118): [AlarmService] onPlayerComplete -> stopped
+I/flutter (10118): [AlarmService] PlayerState: PlayerState.completed

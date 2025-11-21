@@ -59,6 +59,7 @@ class _EditAlarmScreenState extends State<EditAlarmScreen> {
     } else {
       await _service.updateAlarm(newAlarm);
     }
+
     if (mounted) Navigator.pop(context);
   }
 
@@ -77,24 +78,47 @@ class _EditAlarmScreenState extends State<EditAlarmScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
           widget.alarm == null ? "Nouvelle alarme" : "Modifier alarme",
         ),
+        centerTitle: true,
+        elevation: 2,
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // 🔁 Alarme ponctuelle ou récurrente
           Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            elevation: 4,
             child: SwitchListTile(
-              title: const Text("Alarme ponctuelle (date spécifique)"),
+              title: const Text(
+                "Alarme ponctuelle (date spécifique)",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               secondary: const Icon(Icons.event),
               value: _isOneTime,
               onChanged: (val) => setState(() => _isOneTime = val),
+              activeColor: theme.colorScheme.primary,
+              inactiveThumbColor: Colors.grey.shade600, // ✅ cercle gris visible
+              inactiveTrackColor:
+                  Colors.grey.shade300, // ✅ piste claire mais contrastée
             ),
           ),
+          const SizedBox(height: 12),
+
+          // 🕐 Sélecteur d'heure
           Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            elevation: 3,
             child: ListTile(
               leading: const Icon(Icons.access_time),
               title: const Text("Heure"),
@@ -110,8 +134,15 @@ class _EditAlarmScreenState extends State<EditAlarmScreen> {
               },
             ),
           ),
+          const SizedBox(height: 12),
+
+          // 📅 Sélecteur de date si alarme ponctuelle
           if (_isOneTime)
             Card(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              elevation: 3,
               child: ListTile(
                 leading: const Icon(Icons.calendar_today),
                 title: const Text("Date"),
@@ -123,8 +154,14 @@ class _EditAlarmScreenState extends State<EditAlarmScreen> {
                 onTap: _pickDate,
               ),
             ),
+
+          // 🔁 Sélecteur de jours si récurrente
           if (!_isOneTime)
             Card(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              elevation: 3,
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Wrap(
@@ -143,6 +180,10 @@ class _EditAlarmScreenState extends State<EditAlarmScreen> {
                       FilterChip(
                         label: Text(day),
                         selected: _selectedDays.contains(day),
+                        selectedColor: theme.colorScheme.primary.withAlpha(
+                          (0.2 * 255).round(),
+                        ),
+                        checkmarkColor: theme.colorScheme.primary,
                         onSelected: (sel) {
                           setState(() {
                             if (sel) {
@@ -152,13 +193,26 @@ class _EditAlarmScreenState extends State<EditAlarmScreen> {
                             }
                           });
                         },
+                        backgroundColor: Colors.grey[200],
+                        labelStyle: TextStyle(
+                          color:
+                              _selectedDays.contains(day)
+                                  ? theme.colorScheme.primary
+                                  : Colors.black87,
+                        ),
                       ),
                   ],
                 ),
               ),
             ),
           const SizedBox(height: 16),
+
+          // 🎵 Sélecteur de son
           Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            elevation: 3,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: DropdownButtonFormField<String>(
@@ -180,19 +234,29 @@ class _EditAlarmScreenState extends State<EditAlarmScreen> {
                 },
                 decoration: const InputDecoration(
                   labelText: "Sonnerie",
-                  icon: Icon(Icons.music_note),
-                  border: InputBorder.none,
+                  prefixIcon: Icon(Icons.music_note),
+                  border: OutlineInputBorder(),
                 ),
               ),
             ),
           ),
           const SizedBox(height: 24),
+
+          // 💾 Bouton Enregistrer
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: _saveAlarm,
               icon: const Icon(Icons.save),
-              label: const Text("Enregistrer"),
+              label: const Text("Enregistrer", style: TextStyle(fontSize: 16)),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                backgroundColor: theme.colorScheme.primary,
+                elevation: 4,
+              ),
             ),
           ),
         ],
