@@ -13,62 +13,57 @@ class AlarmService {
       _currentAlarmId = null;
       _playStopTimer?.cancel();
       _playStopTimer = null;
-      print('[AlarmService] onPlayerComplete -> stopped');
-    });
-
-    _player.onPlayerStateChanged.listen((state) {
-      print('[AlarmService] PlayerState: $state');
+      print('[AlarmService] Son terminé naturellement');
     });
   }
 
   final List<AlarmModel> alarms = [];
   final AudioPlayer _player = AudioPlayer();
-  Timer? _timer;
   Timer? _playStopTimer;
 
   bool _isPlaying = false;
   String? _currentAlarmId;
-  final Map<String, DateTime> _lastPlayed = {};
 
   List<String> availableSounds = [
     "assets/sounds/alahady_06h30_06h45.mp3",
     "assets/sounds/alahady_06h45.mp3",
     "assets/sounds/alahady_07h_09h_jmf.mp3",
-    "assets/sounds/alahady_07h_09h_zozefa_be.mp3",
+    "assets/sounds/alahady_07h_09h_Zozefa_be.mp3",
     "assets/sounds/angelus_6h.mp3",
     "assets/sounds/ave_maria_12h.mp3",
     "assets/sounds/lakolosy_18h.mp3",
     "assets/sounds/mariazy.mp3",
+    "assets/sounds/mesia_mpamonjy.mp3"
   ];
 
   Future<void> playSound(String path, [String? alarmId]) async {
     if (_isPlaying) {
-      print('[AlarmService] playSound demandé mais déjà en cours -> skip');
+      print('[AlarmService] Son déjà en lecture, ignoré');
       return;
     }
 
     _isPlaying = true;
     _currentAlarmId = alarmId;
+    
     try {
       await _player.setPlayerMode(PlayerMode.mediaPlayer);
       await _player.setReleaseMode(ReleaseMode.stop);
 
       final assetPath = path.replaceFirst("assets/", "");
-      print('[AlarmService] play -> $assetPath (alarmId=$alarmId)');
+      print('[AlarmService] ▶️ Lecture: $assetPath');
 
       await _player.play(AssetSource(assetPath));
 
+      // ✅ Arrêt automatique après 2 minutes
       _playStopTimer?.cancel();
-      _playStopTimer = Timer(const Duration(minutes: 1, seconds: 30), () {
-        print('[AlarmService] Arrêt forcé après 1 minute 30');
+      _playStopTimer = Timer(const Duration(minutes: 2), () {
+        print('[AlarmService] ⏱️ Arrêt automatique après 2 minutes');
         stopSound();
       });
     } catch (e, st) {
-      print('[AlarmService] Erreur playSound: $e\n$st');
+      print('[AlarmService] ❌ Erreur lecture: $e\n$st');
       _isPlaying = false;
       _currentAlarmId = null;
-      _playStopTimer?.cancel();
-      _playStopTimer = null;
     }
   }
 
@@ -77,56 +72,53 @@ class AlarmService {
       _playStopTimer?.cancel();
       _playStopTimer = null;
       await _player.stop();
+      print('[AlarmService] ⏹️ Son arrêté');
     } catch (e) {
-      print('[AlarmService] Erreur stopSound: $e');
+      print('[AlarmService] Erreur arrêt: $e');
     } finally {
       _isPlaying = false;
       _currentAlarmId = null;
-      print('[AlarmService] stopSound -> done');
     }
   }
 
   Future<void> addAlarm(AlarmModel alarm) async {
     alarms.add(alarm);
     await AlarmStorage.saveAlarms(alarms);
-    await _scheduleAndroidAlarm(alarm);
-    _scheduleCheck();
+    
+    if (alarm.isActive) {
+      await _scheduleAndroidAlarm(alarm);
+    }
+    
+    print('[AlarmService] ✅ Alarme ajoutée: ${alarm.id}');
   }
 
   Future<void> removeAlarm(String id) async {
     final alarmIndex = alarms.indexWhere((a) => a.id == id);
-    if (alarmIndex == -1) {
-      print('[AlarmService] Alarme $id déjà supprimée');
-      return;
-    }
+    if (alarmIndex == -1) return;
     
     final alarm = alarms[alarmIndex];
     await _cancelAndroidAlarm(alarm);
     alarms.removeAt(alarmIndex);
     await AlarmStorage.saveAlarms(alarms);
-    print('[AlarmService] Alarme $id supprimée');
+    
+    print('[AlarmService] 🗑️ Alarme supprimée: $id');
   }
 
   Future<void> updateAlarm(AlarmModel updated) async {
     final index = alarms.indexWhere((a) => a.id == updated.id);
-    if (index != -1) {
-      // ✅ IMPORTANT: Annuler l'ancienne alarme AVANT de modifier
-      final oldAlarm = alarms[index];
-      await _cancelAndroidAlarm(oldAlarm);
-      print('[AlarmService] Ancienne alarme annulée avant mise à jour');
-      
-      // ✅ Attendre un peu pour que l'annulation soit effective
-      await Future.delayed(const Duration(milliseconds: 100));
-      
-      // Mettre à jour
-      alarms[index] = updated;
-      await AlarmStorage.saveAlarms(alarms);
-      
-      // Reprogrammer si active
-      if (updated.isActive) {
-        await _scheduleAndroidAlarm(updated);
-      }
+    if (index == -1) return;
+    
+    final oldAlarm = alarms[index];
+    await _cancelAndroidAlarm(oldAlarm);
+    
+    alarms[index] = updated;
+    await AlarmStorage.saveAlarms(alarms);
+    
+    if (updated.isActive) {
+      await _scheduleAndroidAlarm(updated);
     }
+    
+    print('[AlarmService] 🔄 Alarme mise à jour: ${updated.id}');
   }
 
   Future<void> _scheduleAndroidAlarm(AlarmModel alarm) async {
@@ -135,6 +127,7 @@ class AlarmService {
     final int alarmId = alarm.id.hashCode;
     final now = DateTime.now();
 
+    // ✅ Alarme ponctuelle (date fixe)
     if (alarm.isOneTime && alarm.date != null) {
       final alarmDateTime = DateTime(
         alarm.date!.year,
@@ -145,7 +138,7 @@ class AlarmService {
       );
 
       if (alarmDateTime.isAfter(now)) {
-        print('[AlarmService] Programmation oneShot: $alarmDateTime (id=$alarmId)');
+        print('[AlarmService] 📅 Programmation ponctuelle: $alarmDateTime');
         await AndroidAlarmManager.oneShotAt(
           alarmDateTime,
           alarmId,
@@ -153,13 +146,19 @@ class AlarmService {
           exact: true,
           wakeup: true,
           rescheduleOnReboot: true,
-          params: {'alarmId': alarm.id, 'sound': alarm.sound},
+          params: {
+            'alarmId': alarm.id,
+            'sound': alarm.sound,
+            'isOneTime': true,
+          },
         );
       }
-    } else if (alarm.days != null && alarm.days!.isNotEmpty) {
+    } 
+    // ✅ Alarme récurrente (jours de la semaine)
+    else if (alarm.days != null && alarm.days!.isNotEmpty) {
       final nextOccurrence = _getNextOccurrence(alarm);
       if (nextOccurrence != null) {
-        print('[AlarmService] Programmation récurrente: $nextOccurrence (id=$alarmId)');
+        print('[AlarmService] 🔁 Programmation récurrente: $nextOccurrence');
         await AndroidAlarmManager.oneShotAt(
           nextOccurrence,
           alarmId,
@@ -167,7 +166,11 @@ class AlarmService {
           exact: true,
           wakeup: true,
           rescheduleOnReboot: true,
-          params: {'alarmId': alarm.id, 'sound': alarm.sound, 'recurring': true},
+          params: {
+            'alarmId': alarm.id,
+            'sound': alarm.sound,
+            'isRecurring': true,
+          },
         );
       }
     }
@@ -176,28 +179,29 @@ class AlarmService {
   Future<void> _cancelAndroidAlarm(AlarmModel alarm) async {
     final int alarmId = alarm.id.hashCode;
     await AndroidAlarmManager.cancel(alarmId);
-    print('[AlarmService] Alarme système annulée: $alarmId');
+    print('[AlarmService] ❌ Alarme système annulée: $alarmId');
   }
 
   DateTime? _getNextOccurrence(AlarmModel alarm) {
     if (alarm.days == null || alarm.days!.isEmpty) return null;
 
     final now = DateTime.now();
-    final todayWeekday = now.weekday;
     
+    // ✅ Chercher la prochaine occurrence dans les 7 prochains jours
     for (int i = 0; i < 7; i++) {
-      final checkDay = (todayWeekday + i - 1) % 7 + 1;
-      final dayName = _dayName(checkDay);
+      final checkDate = now.add(Duration(days: i));
+      final dayName = _dayName(checkDate.weekday);
       
       if (alarm.days!.contains(dayName)) {
         var candidate = DateTime(
-          now.year,
-          now.month,
-          now.day + i,
+          checkDate.year,
+          checkDate.month,
+          checkDate.day,
           alarm.time.hour,
           alarm.time.minute,
         );
         
+        // ✅ Doit être dans le futur
         if (candidate.isAfter(now)) {
           return candidate;
         }
@@ -206,36 +210,17 @@ class AlarmService {
     return null;
   }
 
-  void _scheduleCheck() {
-    _timer?.cancel();
-  }
-
-  void _checkAlarms() {
-    // Non utilisé - AndroidAlarmManager gère tout
-  }
-
   String _dayName(int weekday) {
-    switch (weekday) {
-      case 1: return "Lundi";
-      case 2: return "Mardi";
-      case 3: return "Mercredi";
-      case 4: return "Jeudi";
-      case 5: return "Vendredi";
-      case 6: return "Samedi";
-      case 7: return "Dimanche";
-      default: return "";
-    }
-  }
-
-  // ✅ Méthode séparée pour charger SANS reprogrammer (utilisée par callback)
-  Future<AlarmModel?> getAlarmById(String alarmId) async {
-    final loaded = await AlarmStorage.loadAlarms();
-    try {
-      return loaded.firstWhere((a) => a.id == alarmId);
-    } catch (e) {
-      print('[AlarmService] Alarme $alarmId non trouvée dans storage');
-      return null;
-    }
+    const days = {
+      1: "Lundi",
+      2: "Mardi",
+      3: "Mercredi",
+      4: "Jeudi",
+      5: "Vendredi",
+      6: "Samedi",
+      7: "Dimanche",
+    };
+    return days[weekday] ?? "";
   }
 
   Future<void> loadAlarms() async {
@@ -243,68 +228,96 @@ class AlarmService {
     alarms.clear();
     alarms.addAll(loaded);
     
-    // ✅ Reprogrammer toutes les alarmes actives au démarrage
-    print('[AlarmService] Chargement de ${alarms.length} alarmes');
+    print('[AlarmService] 📂 ${alarms.length} alarme(s) chargée(s)');
+    
+    // ✅ Reprogrammer uniquement les alarmes actives
     for (var alarm in alarms) {
       if (alarm.isActive) {
+        // ✅ Vérifier si alarme ponctuelle passée
+        if (alarm.isOneTime && alarm.date != null) {
+          final alarmDateTime = DateTime(
+            alarm.date!.year,
+            alarm.date!.month,
+            alarm.date!.day,
+            alarm.time.hour,
+            alarm.time.minute,
+          );
+          
+          if (alarmDateTime.isBefore(DateTime.now())) {
+            // ✅ Désactiver automatiquement
+            alarm.isActive = false;
+            print('[AlarmService] ⏭️ Alarme ponctuelle passée, désactivée: ${alarm.id}');
+            continue;
+          }
+        }
+        
         await _scheduleAndroidAlarm(alarm);
       }
     }
+    
+    // ✅ Sauvegarder les changements (alarmes expirées désactivées)
+    await AlarmStorage.saveAlarms(alarms);
   }
 }
 
-// ✅ Callback optimisé - ne recharge QUE l'alarme concernée
+// ✅ Callback unique pour toutes les alarmes
 @pragma('vm:entry-point')
 void _androidAlarmCallback(int id, Map<String, dynamic> params) async {
-  print('[AndroidAlarmCallback] Déclenchée: id=$id, params=$params');
+  print('[🔔 ALARME] Déclenchée: id=$id');
   
   final alarmId = params['alarmId'] as String?;
   final sound = params['sound'] as String? ?? 'assets/sounds/angelus_6h.mp3';
-  final isRecurring = params['recurring'] as bool? ?? false;
+  final isOneTime = params['isOneTime'] as bool? ?? false;
+  final isRecurring = params['isRecurring'] as bool? ?? false;
 
-  // ✅ Jouer le son
+  if (alarmId == null) {
+    print('[🔔 ALARME] Erreur: alarmId manquant');
+    return;
+  }
+
   final service = AlarmService();
+
+  // ✅ 1. Jouer le son (max 2 min)
   await service.playSound(sound, alarmId);
 
-  // ✅ Si récurrente, reprogrammer UNIQUEMENT cette alarme
-  if (isRecurring && alarmId != null) {
-    try {
-      // ✅ Charger SEULEMENT cette alarme depuis le storage
-      final alarm = await service.getAlarmById(alarmId);
+  // ✅ 2. Charger les alarmes pour traitement
+  final alarms = await AlarmStorage.loadAlarms();
+  final alarm = alarms.where((a) => a.id == alarmId).firstOrNull;
+
+  if (alarm == null) {
+    print('[🔔 ALARME] Alarme $alarmId introuvable dans storage');
+    return;
+  }
+
+  // ✅ 3. Si alarme ponctuelle, la désactiver automatiquement
+  if (isOneTime) {
+    alarm.isActive = false;
+    await AlarmStorage.saveAlarms(alarms);
+    print('[🔔 ALARME] Alarme ponctuelle désactivée: $alarmId');
+  }
+  
+  // ✅ 4. Si alarme récurrente, reprogrammer la prochaine occurrence
+  else if (isRecurring && alarm.isActive) {
+    final nextOccurrence = service._getNextOccurrence(alarm);
+    
+    if (nextOccurrence != null) {
+      print('[🔔 ALARME] Reprogrammation: $nextOccurrence');
       
-      if (alarm == null) {
-        print('[AndroidAlarmCallback] Alarme $alarmId introuvable, annulation');
-        return;
-      }
-      
-      // Vérifier qu'elle est toujours active et récurrente
-      if (alarm.isActive && alarm.days != null && alarm.days!.isNotEmpty) {
-        final nextOccurrence = service._getNextOccurrence(alarm);
-        if (nextOccurrence != null) {
-          print('[AndroidAlarmCallback] Reprogrammation: $nextOccurrence');
-          
-          // ✅ Reprogrammer avec le même ID
-          await AndroidAlarmManager.oneShotAt(
-            nextOccurrence,
-            id,
-            _androidAlarmCallback,
-            exact: true,
-            wakeup: true,
-            rescheduleOnReboot: true,
-            params: {
-              'alarmId': alarm.id,
-              'sound': alarm.sound,
-              'recurring': true,
-            },
-          );
-        } else {
-          print('[AndroidAlarmCallback] Pas de prochaine occurrence trouvée');
-        }
-      } else {
-        print('[AndroidAlarmCallback] Alarme désactivée ou non récurrente, pas de reprogrammation');
-      }
-    } catch (e, st) {
-      print('[AndroidAlarmCallback] Erreur reprogrammation: $e\n$st');
+      await AndroidAlarmManager.oneShotAt(
+        nextOccurrence,
+        id, // ✅ Même ID pour éviter les doublons
+        _androidAlarmCallback,
+        exact: true,
+        wakeup: true,
+        rescheduleOnReboot: true,
+        params: {
+          'alarmId': alarm.id,
+          'sound': alarm.sound,
+          'isRecurring': true,
+        },
+      );
+    } else {
+      print('[🔔 ALARME] Aucune prochaine occurrence trouvée');
     }
   }
 }
