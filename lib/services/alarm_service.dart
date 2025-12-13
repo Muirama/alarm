@@ -187,8 +187,8 @@ class AlarmService {
 
     final now = DateTime.now();
     
-    // ✅ Chercher la prochaine occurrence dans les 7 prochains jours
-    for (int i = 0; i < 7; i++) {
+    // ✅ Commencer par aujourd'hui (i = 0) au lieu de demain
+    for (int i = 0; i <= 8; i++) {
       final checkDate = now.add(Duration(days: i));
       final dayName = _dayName(checkDate.weekday);
       
@@ -201,8 +201,15 @@ class AlarmService {
           alarm.time.minute,
         );
         
-        // ✅ Doit être dans le futur
-        if (candidate.isAfter(now)) {
+        // Pour aujourd'hui (i=0), accepter si c'est dans le futur
+        // Pour les autres jours, accepter directement
+        if (i == 0) {
+          // Aujourd'hui : doit être au moins 10 secondes dans le futur
+          if (candidate.isAfter(now.add(const Duration(seconds: 10)))) {
+            return candidate;
+          }
+        } else {
+          // Jours suivants : toujours accepter
           return candidate;
         }
       }
@@ -296,16 +303,17 @@ void _androidAlarmCallback(int id, Map<String, dynamic> params) async {
     print('[🔔 ALARME] Alarme ponctuelle désactivée: $alarmId');
   }
   
-  // ✅ 4. Si alarme récurrente, reprogrammer la prochaine occurrence
   else if (isRecurring && alarm.isActive) {
+    await Future.delayed(const Duration(seconds: 2));
+    
     final nextOccurrence = service._getNextOccurrence(alarm);
     
     if (nextOccurrence != null) {
-      print('[🔔 ALARME] Reprogrammation: $nextOccurrence');
+      print('[🔔 ALARME] ✅ Reprogrammation: $nextOccurrence');
       
       await AndroidAlarmManager.oneShotAt(
         nextOccurrence,
-        id, // ✅ Même ID pour éviter les doublons
+        id, // 
         _androidAlarmCallback,
         exact: true,
         wakeup: true,
@@ -317,7 +325,7 @@ void _androidAlarmCallback(int id, Map<String, dynamic> params) async {
         },
       );
     } else {
-      print('[🔔 ALARME] Aucune prochaine occurrence trouvée');
+      print('[🔔 ALARME] ❌ ERREUR: Aucune prochaine occurrence trouvée!');
     }
   }
 }
