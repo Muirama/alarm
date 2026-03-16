@@ -1,0 +1,84 @@
+// ignore_for_file: avoid_print
+
+import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
+import '../models/alarm_model.dart';
+import 'alarm_storage.dart';
+import 'alarm_player.dart';
+import 'alarm_scheduler.dart'; // pour nextOccurrence() top-level
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ✅ Callback TOP-LEVEL annoté @pragma — requis par AndroidAlarmManager
+//    S'exécute dans un isolat Flutter séparé.
+//    NE PAS utiliser de singletons qui dépendent de l'état UI ici.
+// ─────────────────────────────────────────────────────────────────────────────
+
+@pragma('vm:entry-point')
+Future<void> alarmCallback(int id, Map<String, dynamic> params) async {
+  _log('🔔 Déclenchée — id=$id params=$params');
+
+  final alarmId = params['alarmId'] as String?;
+  final sound = params['sound'] as String? ?? 'assets/sounds/angelus_6h.mp3';
+  final isOneTime = params['isOneTime'] as bool? ?? false;
+  final isRecurring = params['isRecurring'] as bool? ?? false;
+
+  if (alarmId == null) {
+    _log('❌ alarmId manquant, abandon');
+    return;
+  }
+
+  // ── 1. Jouer le son ─────────────────────────
+  // AlarmPlayer est un singleton léger (AudioPlayer), pas de dépendance UI.
+  await AlarmPlayer().play(sound);
+
+  // ── 2. Charger les alarmes depuis le storage ─
+  final alarms = await AlarmStorage.loadAlarms();
+  final alarm = alarms.where((a) => a.id == alarmId).firstOrNull;
+
+  if (alarm == null) {
+    _log('⚠️ Alarme $alarmId introuvable dans le storage');
+    return;
+  }
+
+  // ── 3. Post-traitement ──────────────────────
+  if (isOneTime) {
+    _handleOneTime(alarm, alarms);
+  } else if (isRecurring && alarm.isActive) {
+    await _handleRecurring(alarm, id);
+  }
+}
+
+/// Désactive l'alarme ponctuelle après déclenchement.
+void _handleOneTime(AlarmModel alarm, List<AlarmModel> alarms) {
+  alarm.isActive = false;
+  AlarmStorage.saveAlarms(alarms);
+  _log('📅 Alarme ponctuelle désactivée: ${alarm.id}');
+}
+
+/// Reprogramme l'alarme récurrente à sa prochaine occurrence.
+Future<void> _handleRecurring(AlarmModel alarm, int androidId) async {
+  // Petit délai pour éviter conflit avec l'alarme qui vient de se déclencher
+  await Future.delayed(const Duration(seconds: 2));
+
+  final next = nextOccurrence(alarm); // top-level depuis alarm_scheduler.dart
+
+  if (next != null) {
+    _log('🔁 Reprogrammation: $next');
+    await AndroidAlarmManager.oneShotAt(
+      next,
+      androidId,
+      alarmCallback, // se rappelle lui-même ✅
+      exact: true,
+      wakeup: true,
+      rescheduleOnReboot: true,
+      params: {
+        'alarmId': alarm.id,
+        'sound': alarm.sound,
+        'isRecurring': true,
+      },
+    );
+  } else {
+    _log('⚠️ Aucune prochaine occurrence pour: ${alarm.id}');
+  }
+}
+
+void _log(String msg) => print('[AlarmCallback] $msg');

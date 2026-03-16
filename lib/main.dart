@@ -5,14 +5,8 @@ import 'services/alarm_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // ✅ Initialiser AndroidAlarmManager uniquement
   await AndroidAlarmManager.initialize();
-
-  // ✅ Charger les alarmes sauvegardées
-  final alarmService = AlarmService();
-  await alarmService.loadAlarms();
-
+  await AlarmService().loadAlarms();
   runApp(const AlarmApp());
 }
 
