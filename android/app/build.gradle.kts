@@ -6,12 +6,12 @@ plugins {
 
 android {
     namespace = "com.example.alarm_fiangonana"
-    compileSdk = 35
+    compileSdk = 36
     ndkVersion = "27.3.13750724"
 
     defaultConfig {
         applicationId = "com.example.alarm_fiangonana"
-        minSdk = 23
+        minSdk = flutter.minSdkVersion
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"

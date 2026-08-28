@@ -33,16 +33,17 @@ class _SoundTesterCardState extends State<SoundTesterCard> {
             DropdownButtonFormField<String>(
               isExpanded: true,
               hint: const Text('Choisir un son'),
-              value: _selectedSound,
-              items: AlarmService.availableSounds.map((s) {
-                return DropdownMenuItem(
-                  value: s,
-                  child: Text(
-                    s.split('/').last,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                );
-              }).toList(),
+              initialValue: _selectedSound,
+              items:
+                  AlarmService.availableSounds.map((s) {
+                    return DropdownMenuItem(
+                      value: s,
+                      child: Text(
+                        s.split('/').last,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }).toList(),
               onChanged: (val) => setState(() => _selectedSound = val),
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
@@ -54,9 +55,10 @@ class _SoundTesterCardState extends State<SoundTesterCard> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 ElevatedButton.icon(
-                  onPressed: _selectedSound == null
-                      ? null
-                      : () => _service.playSound(_selectedSound!),
+                  onPressed:
+                      _selectedSound == null
+                          ? null
+                          : () => _service.playSound(_selectedSound!),
                   icon: const Icon(Icons.play_arrow),
                   label: const Text('Écouter'),
                   style: ElevatedButton.styleFrom(

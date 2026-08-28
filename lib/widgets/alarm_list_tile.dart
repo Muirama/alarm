@@ -39,9 +39,7 @@ class AlarmListTile extends StatelessWidget {
         ),
         subtitle: Text(
           '${alarm.displayDescription}\n${alarm.soundLabel}',
-          style: TextStyle(
-            color: isActive ? Colors.black54 : Colors.grey[400],
-          ),
+          style: TextStyle(color: isActive ? Colors.black54 : Colors.grey[400]),
         ),
         isThreeLine: true,
         trailing: Row(
@@ -50,7 +48,7 @@ class AlarmListTile extends StatelessWidget {
             Switch(
               value: isActive,
               onChanged: onToggle,
-              activeColor: theme.colorScheme.primary,
+              activeThumbColor: theme.colorScheme.primary,
               inactiveThumbColor: Colors.grey.shade600,
               inactiveTrackColor: Colors.grey.shade300,
             ),

@@ -27,7 +27,14 @@ class AlarmService {
     'assets/sounds/mariazy.mp3',
     'assets/sounds/mesia_mpamonjy.mp3',
     'assets/sounds/mitsangana_7h_9h.mp3',
+    'assets/sounds/lakolosy_cathedral_bell_dry_Angelus.mp3',
   ];
+
+  static const Map<String, String> _legacySoundPaths = {
+    'assets/sounds/Alahady_07h_09h_Zozefa_be.mp3':
+        'assets/sounds/alahady_07h_09h_Zozefa_be.mp3',
+    'assets/sounds/Mariazy.mp3': 'assets/sounds/mariazy.mp3',
+  };
 
   // ─── Audio ─────────────────────────────────
   Future<void> playSound(String path) => AlarmPlayer().play(path);
@@ -41,7 +48,12 @@ class AlarmService {
     final now = DateTime.now();
     bool needsSave = false;
 
-    for (final alarm in loaded) {
+    for (var alarm in loaded) {
+      final correctedPath = _legacySoundPaths[alarm.sound];
+      if (correctedPath != null) {
+        alarm = alarm.copyWith(sound: correctedPath);
+        needsSave = true;
+      }
       // Désactiver automatiquement les alarmes ponctuelles expirées
       if (alarm.isOneTime && alarm.date != null) {
         final alarmDateTime = DateTime(
@@ -63,9 +75,7 @@ class AlarmService {
 
       alarms.add(alarm);
 
-      if (alarm.isActive) {
-        await AlarmScheduler.schedule(alarm);
-      }
+      if (alarm.isActive) await _scheduleSafely(alarm);
     }
 
     if (needsSave) await AlarmStorage.saveAlarms(alarms);
@@ -78,6 +88,14 @@ class AlarmService {
     await AlarmStorage.saveAlarms(alarms);
     if (alarm.isActive) await AlarmScheduler.schedule(alarm);
     _log('✅ Alarme ajoutée: ${alarm.id}');
+  }
+
+  /// Reprogramme les alarmes enregistrées, notamment après le retour depuis
+  /// les paramètres d'autorisation Android.
+  Future<void> rescheduleActiveAlarms() async {
+    for (final alarm in alarms.where((alarm) => alarm.isActive)) {
+      await _scheduleSafely(alarm);
+    }
   }
 
   Future<void> updateAlarm(AlarmModel updated) async {
@@ -105,4 +123,14 @@ class AlarmService {
   }
 
   void _log(String msg) => print('[AlarmService] $msg');
+
+  Future<void> _scheduleSafely(AlarmModel alarm) async {
+    try {
+      await AlarmScheduler.schedule(alarm);
+    } catch (error) {
+      // Les alarmes restent enregistrées : elles seront reprogrammées lorsque
+      // l'utilisateur accordera l'autorisation puis reviendra dans l'app.
+      _log('⚠️ Planification impossible pour ${alarm.id}: $error');
+    }
+  }
 }

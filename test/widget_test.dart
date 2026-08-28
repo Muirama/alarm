@@ -1,29 +1,33 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
+import 'package:alarm_fiangonana/models/alarm_model.dart';
+import 'package:alarm_fiangonana/services/alarm_scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:alarm_fiangonana/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const AlarmApp());
+  AlarmModel recurringAlarm(List<String> days, DateTime time) => AlarmModel(
+    id: 'alarm-id',
+    days: days,
+    time: time,
+    sound: 'assets/sounds/angelus_6h.mp3',
+  );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  test('nextOccurrence returns the selected day later in the week', () {
+    final from = DateTime(2026, 8, 31, 9); // lundi
+    final alarm = recurringAlarm(['Mercredi'], DateTime(2026, 1, 1, 7, 30));
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    expect(nextOccurrence(alarm, from), DateTime(2026, 9, 2, 7, 30));
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  test('nextOccurrence skips an occurrence already passed today', () {
+    final from = DateTime(2026, 8, 31, 8); // lundi
+    final alarm = recurringAlarm(['Lundi'], DateTime(2026, 1, 1, 7, 30));
+
+    expect(nextOccurrence(alarm, from), DateTime(2026, 9, 7, 7, 30));
+  });
+
+  test('Android alarm id is deterministic and positive', () {
+    final alarm = recurringAlarm(['Lundi'], DateTime(2026, 1, 1, 7));
+
+    expect(alarm.androidAlarmId, greaterThanOrEqualTo(0));
+    expect(alarm.androidAlarmId, alarm.androidAlarmId);
   });
 }

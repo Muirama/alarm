@@ -43,7 +43,7 @@ class AlarmApp extends StatelessWidget {
           backgroundColor: Color(0xFF1E88E5),
           foregroundColor: Colors.white,
         ),
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),

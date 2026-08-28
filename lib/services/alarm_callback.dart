@@ -1,6 +1,7 @@
 // ignore_for_file: avoid_print
 
 import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
+import 'package:flutter/widgets.dart';
 import '../models/alarm_model.dart';
 import 'alarm_storage.dart';
 import 'alarm_player.dart';
@@ -14,6 +15,10 @@ import 'alarm_scheduler.dart'; // pour nextOccurrence() top-level
 
 @pragma('vm:entry-point')
 Future<void> alarmCallback(int id, Map<String, dynamic> params) async {
+  // Le callback tourne dans un isolat distinct lorsque l'application est
+  // fermée ou l'écran verrouillé. Le binding est requis pour les MethodChannels.
+  WidgetsFlutterBinding.ensureInitialized();
+
   _log('🔔 Déclenchée — id=$id params=$params');
 
   final alarmId = params['alarmId'] as String?;
@@ -26,11 +31,8 @@ Future<void> alarmCallback(int id, Map<String, dynamic> params) async {
     return;
   }
 
-  // ── 1. Jouer le son ─────────────────────────
-  // AlarmPlayer est un singleton léger (AudioPlayer), pas de dépendance UI.
-  await AlarmPlayer().play(sound);
-
-  // ── 2. Charger les alarmes depuis le storage ─
+  // Charger puis valider l'alarme avant toute lecture. Une alarme peut avoir
+  // été supprimée ou désactivée entre le déclenchement Android et ce callback.
   final alarms = await AlarmStorage.loadAlarms();
   final alarm = alarms.where((a) => a.id == alarmId).firstOrNull;
 
@@ -38,19 +40,26 @@ Future<void> alarmCallback(int id, Map<String, dynamic> params) async {
     _log('⚠️ Alarme $alarmId introuvable dans le storage');
     return;
   }
+  if (!alarm.isActive) {
+    _log('ℹ️ Alarme $alarmId désactivée, aucun son joué');
+    return;
+  }
 
-  // ── 3. Post-traitement ──────────────────────
+  // AlarmPlayer est un singleton léger (AudioPlayer), sans dépendance UI.
+  await AlarmPlayer().play(sound);
+
+  // ── Post-traitement ─────────────────────────
   if (isOneTime) {
-    _handleOneTime(alarm, alarms);
+    await _handleOneTime(alarm, alarms);
   } else if (isRecurring && alarm.isActive) {
     await _handleRecurring(alarm, id);
   }
 }
 
 /// Désactive l'alarme ponctuelle après déclenchement.
-void _handleOneTime(AlarmModel alarm, List<AlarmModel> alarms) {
+Future<void> _handleOneTime(AlarmModel alarm, List<AlarmModel> alarms) async {
   alarm.isActive = false;
-  AlarmStorage.saveAlarms(alarms);
+  await AlarmStorage.saveAlarms(alarms);
   _log('📅 Alarme ponctuelle désactivée: ${alarm.id}');
 }
 
@@ -63,19 +72,20 @@ Future<void> _handleRecurring(AlarmModel alarm, int androidId) async {
 
   if (next != null) {
     _log('🔁 Reprogrammation: $next');
-    await AndroidAlarmManager.oneShotAt(
+    final scheduled = await AndroidAlarmManager.oneShotAt(
       next,
       androidId,
       alarmCallback, // se rappelle lui-même ✅
+      alarmClock: true,
+      allowWhileIdle: true,
       exact: true,
       wakeup: true,
       rescheduleOnReboot: true,
-      params: {
-        'alarmId': alarm.id,
-        'sound': alarm.sound,
-        'isRecurring': true,
-      },
+      params: {'alarmId': alarm.id, 'sound': alarm.sound, 'isRecurring': true},
     );
+    if (!scheduled) {
+      _log('❌ Échec de reprogrammation: ${alarm.id}');
+    }
   } else {
     _log('⚠️ Aucune prochaine occurrence pour: ${alarm.id}');
   }

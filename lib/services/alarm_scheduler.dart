@@ -32,34 +32,43 @@ class AlarmScheduler {
 
     if (alarmDateTime.isAfter(now)) {
       _log('📅 Ponctuelle: $alarmDateTime');
-      await AndroidAlarmManager.oneShotAt(
+      final scheduled = await AndroidAlarmManager.oneShotAt(
         alarmDateTime,
         alarm.androidAlarmId,
         alarmCallback, // top-level — isolat safe ✅
+        alarmClock: true,
+        allowWhileIdle: true,
         exact: true,
         wakeup: true,
         rescheduleOnReboot: true,
         params: _buildParams(alarm, isOneTime: true),
       );
+      if (!scheduled) {
+        throw AlarmScheduleException('La planification de l\'alarme a échoué.');
+      }
     } else {
       _log('⚠️ Date passée, alarme non planifiée: ${alarm.id}');
     }
   }
 
-  static Future<void> _scheduleRecurring(
-      AlarmModel alarm, DateTime now) async {
+  static Future<void> _scheduleRecurring(AlarmModel alarm, DateTime now) async {
     final next = nextOccurrence(alarm, now); // top-level ✅
     if (next != null) {
       _log('🔁 Récurrente: $next');
-      await AndroidAlarmManager.oneShotAt(
+      final scheduled = await AndroidAlarmManager.oneShotAt(
         next,
         alarm.androidAlarmId,
         alarmCallback,
+        alarmClock: true,
+        allowWhileIdle: true,
         exact: true,
         wakeup: true,
         rescheduleOnReboot: true,
         params: _buildParams(alarm, isRecurring: true),
       );
+      if (!scheduled) {
+        throw AlarmScheduleException('La planification de l\'alarme a échoué.');
+      }
     } else {
       _log('⚠️ Aucune occurrence trouvée: ${alarm.id}');
     }
@@ -76,15 +85,23 @@ class AlarmScheduler {
     AlarmModel alarm, {
     bool isOneTime = false,
     bool isRecurring = false,
-  }) =>
-      {
-        'alarmId': alarm.id,
-        'sound': alarm.sound,
-        'isOneTime': isOneTime,
-        'isRecurring': isRecurring,
-      };
+  }) => {
+    'alarmId': alarm.id,
+    'sound': alarm.sound,
+    'isOneTime': isOneTime,
+    'isRecurring': isRecurring,
+  };
 
   static void _log(String msg) => print('[AlarmScheduler] $msg');
+}
+
+class AlarmScheduleException implements Exception {
+  const AlarmScheduleException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

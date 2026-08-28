@@ -38,11 +38,12 @@ class AlarmModel {
       '${time.hour.toString().padLeft(2, '0')}:'
       '${time.minute.toString().padLeft(2, '0')}';
 
-  String get formattedDate => date != null
-      ? '${date!.day.toString().padLeft(2, '0')}/'
-        '${date!.month.toString().padLeft(2, '0')}/'
-        '${date!.year}'
-      : '';
+  String get formattedDate =>
+      date != null
+          ? '${date!.day.toString().padLeft(2, '0')}/'
+              '${date!.month.toString().padLeft(2, '0')}/'
+              '${date!.year}'
+          : '';
 
   String get soundLabel => sound.split('/').last;
 
@@ -54,26 +55,22 @@ class AlarmModel {
 
   // ─── Sérialisation ─────────────────────────
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'days': days,
-        'time': time.toIso8601String(),
-        'date': date?.toIso8601String(),
-        'sound': sound,
-        'isActive': isActive,
-      };
+    'id': id,
+    'days': days,
+    'time': time.toIso8601String(),
+    'date': date?.toIso8601String(),
+    'sound': sound,
+    'isActive': isActive,
+  };
 
   factory AlarmModel.fromJson(Map<String, dynamic> json) => AlarmModel(
-        id: json['id'] as String,
-        days: json['days'] != null
-            ? List<String>.from(json['days'] as List)
-            : null,
-        time: DateTime.parse(json['time'] as String),
-        date: json['date'] != null
-            ? DateTime.parse(json['date'] as String)
-            : null,
-        sound: json['sound'] as String,
-        isActive: json['isActive'] as bool,
-      );
+    id: json['id'] as String,
+    days: json['days'] != null ? List<String>.from(json['days'] as List) : null,
+    time: DateTime.parse(json['time'] as String),
+    date: json['date'] != null ? DateTime.parse(json['date'] as String) : null,
+    sound: json['sound'] as String,
+    isActive: json['isActive'] as bool,
+  );
 
   AlarmModel copyWith({
     String? id,
@@ -84,13 +81,12 @@ class AlarmModel {
     bool? isActive,
     bool clearDate = false,
     bool clearDays = false,
-  }) =>
-      AlarmModel(
-        id: id ?? this.id,
-        days: clearDays ? null : (days ?? this.days),
-        time: time ?? this.time,
-        date: clearDate ? null : (date ?? this.date),
-        sound: sound ?? this.sound,
-        isActive: isActive ?? this.isActive,
-      );
+  }) => AlarmModel(
+    id: id ?? this.id,
+    days: clearDays ? null : (days ?? this.days),
+    time: time ?? this.time,
+    date: clearDate ? null : (date ?? this.date),
+    sound: sound ?? this.sound,
+    isActive: isActive ?? this.isActive,
+  );
 }

@@ -36,11 +36,22 @@ class AlarmPlayer {
     try {
       await _player.setPlayerMode(PlayerMode.mediaPlayer);
       await _player.setReleaseMode(ReleaseMode.stop);
+      await _player.setAudioContext(
+        const AudioContext(
+          android: AudioContextAndroid(
+            contentType: AndroidContentType.sonification,
+            usageType: AndroidUsageType.alarm,
+            audioFocus: AndroidAudioFocus.gain,
+            stayAwake: true,
+          ),
+        ),
+      );
 
       // audioplayers attend le chemin sans le préfixe "assets/"
-      final cleaned = assetPath.startsWith('assets/')
-          ? assetPath.substring('assets/'.length)
-          : assetPath;
+      final cleaned =
+          assetPath.startsWith('assets/')
+              ? assetPath.substring('assets/'.length)
+              : assetPath;
 
       _log('▶️ Lecture: $cleaned');
       await _player.play(AssetSource(cleaned));

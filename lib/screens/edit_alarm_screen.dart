@@ -19,8 +19,13 @@ class _EditAlarmScreenState extends State<EditAlarmScreen> {
   late bool _isOneTime;
 
   static const _weekdays = [
-    'Lundi', 'Mardi', 'Mercredi', 'Jeudi',
-    'Vendredi', 'Samedi', 'Dimanche',
+    'Lundi',
+    'Mardi',
+    'Mercredi',
+    'Jeudi',
+    'Vendredi',
+    'Samedi',
+    'Dimanche',
   ];
 
   @override
@@ -51,7 +56,11 @@ class _EditAlarmScreenState extends State<EditAlarmScreen> {
 
     final now = DateTime.now();
     final alarmTime = DateTime(
-      now.year, now.month, now.day, _time.hour, _time.minute,
+      now.year,
+      now.month,
+      now.day,
+      _time.hour,
+      _time.minute,
     );
 
     final newAlarm = AlarmModel(
@@ -60,7 +69,7 @@ class _EditAlarmScreenState extends State<EditAlarmScreen> {
       time: alarmTime,
       date: _isOneTime ? _selectedDate : null,
       sound: _selectedSound,
-      isActive: true,
+      isActive: widget.alarm?.isActive ?? true,
     );
 
     final service = AlarmService();
@@ -82,8 +91,11 @@ class _EditAlarmScreenState extends State<EditAlarmScreen> {
     }
     if (_isOneTime && _selectedDate != null) {
       final alarmDateTime = DateTime(
-        _selectedDate!.year, _selectedDate!.month, _selectedDate!.day,
-        _time.hour, _time.minute,
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+        _time.hour,
+        _time.minute,
       );
       if (alarmDateTime.isBefore(DateTime.now())) {
         return 'La date et l\'heure doivent être dans le futur';
@@ -95,16 +107,17 @@ class _EditAlarmScreenState extends State<EditAlarmScreen> {
   void _showError(String message) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('⚠️ Attention'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+      builder:
+          (_) => AlertDialog(
+            title: const Text('⚠️ Attention'),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -126,7 +139,9 @@ class _EditAlarmScreenState extends State<EditAlarmScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.alarm == null ? 'Nouvelle alarme' : 'Modifier alarme'),
+        title: Text(
+          widget.alarm == null ? 'Nouvelle alarme' : 'Modifier alarme',
+        ),
         centerTitle: true,
       ),
       body: ListView(
@@ -149,14 +164,15 @@ class _EditAlarmScreenState extends State<EditAlarmScreen> {
 
   // ─── Widgets internes ──────────────────────
   Widget _buildOneTimeSwitch(ThemeData theme) => _card(
-        child: SwitchListTile(
-          title: const Text(
-            'Alarme ponctuelle (date spécifique)',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          secondary: const Icon(Icons.event),
-          value: _isOneTime,
-          onChanged: (val) => setState(() {
+    child: SwitchListTile(
+      title: const Text(
+        'Alarme ponctuelle (date spécifique)',
+        style: TextStyle(fontWeight: FontWeight.bold),
+      ),
+      secondary: const Icon(Icons.event),
+      value: _isOneTime,
+      onChanged:
+          (val) => setState(() {
             _isOneTime = val;
             if (val) {
               _selectedDays = [];
@@ -164,149 +180,150 @@ class _EditAlarmScreenState extends State<EditAlarmScreen> {
               _selectedDate = null;
             }
           }),
-          activeColor: theme.colorScheme.primary,
-          inactiveThumbColor: Colors.grey.shade600,
-          inactiveTrackColor: Colors.grey.shade300,
-        ),
-      );
+      activeThumbColor: theme.colorScheme.primary,
+      inactiveThumbColor: Colors.grey.shade600,
+      inactiveTrackColor: Colors.grey.shade300,
+    ),
+  );
 
   Widget _buildTimePicker() => _card(
-        child: ListTile(
-          leading: const Icon(Icons.access_time),
-          title: const Text('Heure'),
-          subtitle: Text(
-            '${_time.hour.toString().padLeft(2, '0')}:'
-            '${_time.minute.toString().padLeft(2, '0')}',
-          ),
-          onTap: () async {
-            final picked = await showTimePicker(
-              context: context, initialTime: _time,
-            );
-            if (picked != null) setState(() => _time = picked);
-          },
-        ),
-      );
+    child: ListTile(
+      leading: const Icon(Icons.access_time),
+      title: const Text('Heure'),
+      subtitle: Text(
+        '${_time.hour.toString().padLeft(2, '0')}:'
+        '${_time.minute.toString().padLeft(2, '0')}',
+      ),
+      onTap: () async {
+        final picked = await showTimePicker(
+          context: context,
+          initialTime: _time,
+        );
+        if (picked != null) setState(() => _time = picked);
+      },
+    ),
+  );
 
   Widget _buildDatePicker() => _card(
-        borderColor: _selectedDate == null ? Colors.red : null,
-        child: ListTile(
-          leading: Icon(
-            Icons.calendar_today,
-            color: _selectedDate == null ? Colors.red : null,
-          ),
-          title: Text(
-            'Date${_selectedDate == null ? ' (obligatoire)' : ''}',
-            style: TextStyle(
-              color: _selectedDate == null ? Colors.red : null,
-            ),
-          ),
-          subtitle: Text(
-            _selectedDate != null
-                ? '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'
-                : 'Choisir une date',
-            style: TextStyle(
-              color: _selectedDate == null ? Colors.red[300] : null,
-            ),
-          ),
-          onTap: _pickDate,
-        ),
-      );
+    borderColor: _selectedDate == null ? Colors.red : null,
+    child: ListTile(
+      leading: Icon(
+        Icons.calendar_today,
+        color: _selectedDate == null ? Colors.red : null,
+      ),
+      title: Text(
+        'Date${_selectedDate == null ? ' (obligatoire)' : ''}',
+        style: TextStyle(color: _selectedDate == null ? Colors.red : null),
+      ),
+      subtitle: Text(
+        _selectedDate != null
+            ? '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'
+            : 'Choisir une date',
+        style: TextStyle(color: _selectedDate == null ? Colors.red[300] : null),
+      ),
+      onTap: _pickDate,
+    ),
+  );
 
   Widget _buildDaySelector(ThemeData theme) => _card(
-        borderColor: _selectedDays.isEmpty ? Colors.red : null,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Jours de répétition'
-                '${_selectedDays.isEmpty ? ' (obligatoire)' : ''}',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: _selectedDays.isEmpty ? Colors.red : Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _weekdays.map((day) {
+    borderColor: _selectedDays.isEmpty ? Colors.red : null,
+    child: Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Jours de répétition'
+            '${_selectedDays.isEmpty ? ' (obligatoire)' : ''}',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: _selectedDays.isEmpty ? Colors.red : Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children:
+                _weekdays.map((day) {
                   final selected = _selectedDays.contains(day);
                   return FilterChip(
                     label: Text(day),
                     selected: selected,
-                    selectedColor:
-                        theme.colorScheme.primary.withAlpha((0.2 * 255).round()),
+                    selectedColor: theme.colorScheme.primary.withAlpha(
+                      (0.2 * 255).round(),
+                    ),
                     checkmarkColor: theme.colorScheme.primary,
                     backgroundColor: Colors.grey[200],
                     labelStyle: TextStyle(
-                      color: selected
-                          ? theme.colorScheme.primary
-                          : Colors.black87,
+                      color:
+                          selected ? theme.colorScheme.primary : Colors.black87,
                     ),
-                    onSelected: (sel) => setState(() {
-                      sel ? _selectedDays.add(day) : _selectedDays.remove(day);
-                    }),
+                    onSelected:
+                        (sel) => setState(() {
+                          sel
+                              ? _selectedDays.add(day)
+                              : _selectedDays.remove(day);
+                        }),
                   );
                 }).toList(),
-              ),
-            ],
           ),
-        ),
-      );
+        ],
+      ),
+    ),
+  );
 
   Widget _buildSoundSelector() => _card(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: DropdownButtonFormField<String>(
-            value: _selectedSound,
-            isExpanded: true,
-            items: AlarmService.availableSounds.map((s) {
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: DropdownButtonFormField<String>(
+        initialValue: _selectedSound,
+        isExpanded: true,
+        items:
+            AlarmService.availableSounds.map((s) {
               return DropdownMenuItem(
                 value: s,
                 child: Text(s.split('/').last, overflow: TextOverflow.ellipsis),
               );
             }).toList(),
-            onChanged: (val) {
-              if (val != null) setState(() => _selectedSound = val);
-            },
-            decoration: const InputDecoration(
-              labelText: 'Sonnerie',
-              prefixIcon: Icon(Icons.music_note),
-              border: OutlineInputBorder(),
-            ),
-          ),
+        onChanged: (val) {
+          if (val != null) setState(() => _selectedSound = val);
+        },
+        decoration: const InputDecoration(
+          labelText: 'Sonnerie',
+          prefixIcon: Icon(Icons.music_note),
+          border: OutlineInputBorder(),
         ),
-      );
+      ),
+    ),
+  );
 
   Widget _buildSaveButton(ThemeData theme) => SizedBox(
-        width: double.infinity,
-        child: ElevatedButton.icon(
-          onPressed: _saveAlarm,
-          icon: const Icon(Icons.save),
-          label: const Text('Enregistrer', style: TextStyle(fontSize: 16)),
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            backgroundColor: theme.colorScheme.primary,
-            elevation: 4,
-          ),
-        ),
-      );
+    width: double.infinity,
+    child: ElevatedButton.icon(
+      onPressed: _saveAlarm,
+      icon: const Icon(Icons.save),
+      label: const Text('Enregistrer', style: TextStyle(fontSize: 16)),
+      style: ElevatedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: theme.colorScheme.primary,
+        elevation: 4,
+      ),
+    ),
+  );
 
   /// Helper : Card avec bordure optionnelle.
   Widget _card({required Widget child, Color? borderColor}) => Card(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: borderColor != null
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+      side:
+          borderColor != null
               ? BorderSide(color: borderColor, width: 1)
               : BorderSide.none,
-        ),
-        elevation: 3,
-        child: child,
-      );
+    ),
+    elevation: 3,
+    child: child,
+  );
 }
