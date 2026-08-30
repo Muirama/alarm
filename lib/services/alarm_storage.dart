@@ -18,9 +18,26 @@ class AlarmStorage {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_key);
     if (raw == null) return [];
-    final List<dynamic> decoded = jsonDecode(raw) as List<dynamic>;
-    return decoded
-        .map((e) => AlarmModel.fromJson(e as Map<String, dynamic>))
-        .toList();
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return [];
+
+      return decoded
+          .whereType<Map>()
+          .map((entry) {
+            try {
+              return AlarmModel.fromJson(Map<String, dynamic>.from(entry));
+            } on FormatException {
+              return null;
+            } on TypeError {
+              return null;
+            }
+          })
+          .whereType<AlarmModel>()
+          .toList();
+    } on FormatException {
+      return [];
+    }
   }
 }

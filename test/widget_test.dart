@@ -1,5 +1,6 @@
 import 'package:alarm_fiangonana/models/alarm_model.dart';
 import 'package:alarm_fiangonana/services/alarm_scheduler.dart';
+import 'package:alarm_fiangonana/services/alarm_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -29,5 +30,18 @@ void main() {
 
     expect(alarm.androidAlarmId, greaterThanOrEqualTo(0));
     expect(alarm.androidAlarmId, alarm.androidAlarmId);
+  });
+
+  test('a removed or legacy sound falls back to an available asset', () {
+    expect(
+      AlarmService.normalizeSoundPath('assets/sounds/lakolosy_18h.mp3'),
+      AlarmService.fallbackSound,
+    );
+    expect(
+      AlarmService.normalizeSoundPath(
+        'assets/sounds/Alahady_07h_09h_Zozefa_be.mp3',
+      ),
+      'assets/sounds/alahady_07h_09h_Zozefa_be.mp3',
+    );
   });
 }

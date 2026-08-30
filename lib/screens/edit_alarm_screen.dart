@@ -73,13 +73,23 @@ class _EditAlarmScreenState extends State<EditAlarmScreen> {
     );
 
     final service = AlarmService();
-    if (widget.alarm == null) {
-      await service.addAlarm(newAlarm);
-    } else {
-      await service.updateAlarm(newAlarm);
+    final scheduled =
+        widget.alarm == null
+            ? await service.addAlarm(newAlarm)
+            : await service.updateAlarm(newAlarm);
+
+    if (!mounted) return;
+    if (!scheduled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Alarme enregistrée, mais non planifiée. Autorisez les alarmes et rappels.',
+          ),
+        ),
+      );
     }
 
-    if (mounted) Navigator.pop(context);
+    Navigator.pop(context);
   }
 
   String? _validate() {

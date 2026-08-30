@@ -6,6 +6,7 @@ import '../models/alarm_model.dart';
 import 'alarm_storage.dart';
 import 'alarm_player.dart';
 import 'alarm_scheduler.dart'; // pour nextOccurrence() top-level
+import 'alarm_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ✅ Callback TOP-LEVEL annoté @pragma — requis par AndroidAlarmManager
@@ -22,7 +23,6 @@ Future<void> alarmCallback(int id, Map<String, dynamic> params) async {
   _log('🔔 Déclenchée — id=$id params=$params');
 
   final alarmId = params['alarmId'] as String?;
-  final sound = params['sound'] as String? ?? 'assets/sounds/angelus_6h.mp3';
   final isOneTime = params['isOneTime'] as bool? ?? false;
   final isRecurring = params['isRecurring'] as bool? ?? false;
 
@@ -46,7 +46,7 @@ Future<void> alarmCallback(int id, Map<String, dynamic> params) async {
   }
 
   // AlarmPlayer est un singleton léger (AudioPlayer), sans dépendance UI.
-  await AlarmPlayer().play(sound);
+  await AlarmPlayer().play(AlarmService.normalizeSoundPath(alarm.sound));
 
   // ── Post-traitement ─────────────────────────
   if (isOneTime) {
