@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../models/alarm_model.dart';
+import '../models/alarm_model.dart';
 
 /// Tuile affichée dans la liste des alarmes.
 class AlarmListTile extends StatelessWidget {

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../services/alarm_service.dart';
+import '../services/alarm_service.dart';
 
 /// Widget de test de son — affiché en haut du HomeScreen.
 class SoundTesterCard extends StatefulWidget {
