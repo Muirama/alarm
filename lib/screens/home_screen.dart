@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/alarm_service.dart';
 import '../services/exact_alarm_permission.dart';
+import '../services/battery_optimization.dart';
 import '../models/alarm_model.dart';
 import '../widgets/alarm_list_tile.dart';
 import '../widgets/sound_tester_card.dart';
@@ -16,12 +17,14 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final AlarmService _service = AlarmService();
   bool _canScheduleExactAlarms = true;
+  bool _isIgnoringBatteryOptimizations = true;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _refreshExactAlarmPermission();
+    _refreshBatteryOptimization();
   }
 
   @override
@@ -32,7 +35,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _refreshExactAlarmPermission();
+    if (state == AppLifecycleState.resumed) {
+      _refreshExactAlarmPermission();
+      _refreshBatteryOptimization();
+    }
+  }
+
+  Future<void> _refreshBatteryOptimization() async {
+    try {
+      final ignoring = await BatteryOptimization.isIgnoringBatteryOptimizations();
+      if (!mounted) return;
+      setState(() => _isIgnoringBatteryOptimizations = ignoring);
+    } catch (_) {
+      // Non bloquant : l'app reste utilisable sans cette info.
+    }
   }
 
   Future<void> _refreshExactAlarmPermission() async {
@@ -102,6 +118,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               _buildExactAlarmWarning(),
               const SizedBox(height: 12),
             ],
+            if (!_isIgnoringBatteryOptimizations) ...[
+              _buildBatteryOptimizationWarning(),
+              const SizedBox(height: 12),
+            ],
             const SoundTesterCard(),
             const SizedBox(height: 12),
             const Divider(),
@@ -139,6 +159,44 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               onPressed: _requestExactAlarmPermission,
               child: const Text('Ouvrir les paramètres'),
             ),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Widget _buildBatteryOptimizationWarning() => Card(
+    color: Colors.red.shade50,
+    child: Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '⚠️ Le son peut ne pas sonner écran verrouillé',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Certains téléphones arrêtent l\'application en arrière-plan. '
+            'Autorisez-la à ignorer l\'optimisation de batterie et à démarrer '
+            'automatiquement pour garantir que le réveil sonne.',
+          ),
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 8,
+            children: [
+              TextButton(
+                onPressed: BatteryOptimization.openAutostartSettings,
+                child: const Text('Démarrage auto.'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  await BatteryOptimization.requestIgnoreBatteryOptimizations();
+                },
+                child: const Text('Ignorer l\'optimisation'),
+              ),
+            ],
           ),
         ],
       ),

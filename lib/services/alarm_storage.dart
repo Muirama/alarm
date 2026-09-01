@@ -16,6 +16,11 @@ class AlarmStorage {
 
   static Future<List<AlarmModel>> loadAlarms() async {
     final prefs = await SharedPreferences.getInstance();
+    // 🔑 Essentiel : l'isolat d'arrière-plan de android_alarm_manager_plus
+    // est réutilisé entre plusieurs déclenchements et garde en mémoire un
+    // instantané périmé des préférences. reload() force une relecture
+    // depuis le disque pour voir les alarmes créées/modifiées depuis l'UI.
+    await prefs.reload();
     final raw = prefs.getString(_key);
     if (raw == null) return [];
 
